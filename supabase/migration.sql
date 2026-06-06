@@ -229,3 +229,34 @@ create trigger sermon_drafts_updated_at
 --   with check (bucket_id = 'sermon-audio' and auth.uid()::text = (storage.foldername(name))[1]);
 --
 -- (Repeat pattern for sermon-media and sermon-exports)
+
+-- ---------------------------------------------------------------
+-- Migration v2 — run these ALTER statements in Supabase SQL editor
+-- if you already ran migration.sql
+-- ---------------------------------------------------------------
+
+-- Expand sermon_inputs.kind
+alter table sermon_inputs
+  drop constraint if exists sermon_inputs_kind_check;
+alter table sermon_inputs
+  add constraint sermon_inputs_kind_check
+  check (kind in ('text','dictation','audio','file','bible_ref','document'));
+
+-- Expand sermon_drafts.template_type + add speaker_notes
+alter table sermon_drafts
+  drop constraint if exists sermon_drafts_template_type_check;
+alter table sermon_drafts
+  add constraint sermon_drafts_template_type_check
+  check (template_type in (
+    'prayer','message','story','devotional','teaching',
+    'testimony','youth','small_group','storytelling','custom'
+  ));
+alter table sermon_drafts
+  add column if not exists speaker_notes text;
+
+-- Expand sermon_media.kind
+alter table sermon_media
+  drop constraint if exists sermon_media_kind_check;
+alter table sermon_media
+  add constraint sermon_media_kind_check
+  check (kind in ('image','map','timeline','scripture_slide','graphic'));

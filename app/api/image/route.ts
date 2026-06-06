@@ -1,42 +1,57 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { generateImageBase64, generateText, MODELS } from '@/lib/gemini'
+import type { MediaKind } from '@/types'
 
 export const maxDuration = 60
+
+const KIND_PROMPT_SUFFIX: Record<MediaKind, string> = {
+  image: 'Cinematic, inspirational Christian illustration. Dramatic warm lighting, high quality digital art suitable for church presentations.',
+  map: 'Detailed biblical / historical map illustration. Warm sepia tones, ancient cartography aesthetic, clearly labeled locations, high quality.',
+  timeline: 'Clean visual timeline infographic showing biblical or historical events in chronological order. Light background, elegant typography, gold accent lines.',
+  scripture_slide: 'Beautiful scripture highlight slide. Dark purple or navy gradient background, elegant gold or white serif typography, subtle light rays or dove imagery. Presentation-ready.',
+  graphic: 'Custom sermon graphic. Bold, modern church graphic design with the theme as the focal point. Clean typography, powerful colors, inspirational.',
+}
+
+const KIND_AUTO_HINT: Record<MediaKind, string> = {
+  image: 'action-based illustration or biblical scene',
+  map: 'biblical location map or ancient Middle East geographical illustration',
+  timeline: 'chronological timeline of biblical events or historical context relevant to the sermon',
+  scripture_slide: 'scripture highlight slide featuring a key verse from the sermon',
+  graphic: 'sermon title graphic or thematic banner for the sermon',
+}
 
 export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { sermonId, prompt, kind = 'image', highQuality = false, autoPrompt = false, sermonText } = await req.json()
+  const { sermonId, prompt, kind = 'image', highQuality = false, autoPrompt = false, sermonText, regenerateId } = await req.json()
 
   if (!sermonId) return NextResponse.json({ error: 'Missing sermonId' }, { status: 400 })
+
+  const mediaKind = kind as MediaKind
 
   let imagePrompt = prompt
 
   // Auto-generate a relevant prompt from sermon text
   if (autoPrompt && sermonText) {
-    const suggestPrompt = `Based on this sermon content, suggest ONE specific, vivid image prompt for a ${kind === 'map' ? 'biblical location map or ancient Middle East geographical illustration' : 'powerful, action-based Christian illustration or scene'}. 
-    
-Sermon excerpt: ${sermonText.slice(0, 800)}
+    const suggestPrompt = `Based on this sermon content, suggest ONE specific, vivid image prompt for a ${KIND_AUTO_HINT[mediaKind]}.
 
-Return ONLY the image prompt, no explanation. Make it cinematic and spiritually evocative.`
+Sermon excerpt: ${(sermonText as string).replace(/<[^>]+>/g, ' ').slice(0, 800)}
+
+Return ONLY the image prompt as a single sentence, no explanation, no quotes.`
     imagePrompt = await generateText(suggestPrompt, MODELS.flash)
   }
 
   if (!imagePrompt) return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })
 
-  // Enhance the prompt for sermon context
-  const enhancedPrompt = kind === 'map'
-    ? `${imagePrompt}. Style: detailed biblical/historical map illustration, warm sepia tones, ancient cartography aesthetic, high quality.`
-    : `${imagePrompt}. Style: cinematic, inspirational, high-quality digital art suitable for church presentations, dramatic lighting.`
+  const enhancedPrompt = `${imagePrompt}. ${KIND_PROMPT_SUFFIX[mediaKind]}`
 
   const base64 = await generateImageBase64(enhancedPrompt, highQuality)
 
-  // Upload to Supabase Storage
   const adminClient = await createAdminClient()
-  const filename = `${user.id}/${sermonId}/${Date.now()}-${kind}.png`
+  const filename = `${user.id}/${sermonId}/${Date.now()}-${mediaKind}.png`
   const buffer = Buffer.from(base64, 'base64')
 
   const { error: uploadError } = await adminClient.storage
@@ -45,11 +60,13 @@ Return ONLY the image prompt, no explanation. Make it cinematic and spiritually 
 
   if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 })
 
-  const { data: { publicUrl } } = adminClient.storage
-    .from('sermon-media')
-    .getPublicUrl(filename)
+  const { data: { publicUrl } } = adminClient.storage.from('sermon-media').getPublicUrl(filename)
 
-  // Get current max order_index
+  // If regenerating, delete the old media item first
+  if (regenerateId) {
+    await supabase.from('sermon_media').delete().eq('id', regenerateId)
+  }
+
   const { data: existing } = await supabase
     .from('sermon_media')
     .select('order_index')
@@ -62,7 +79,7 @@ Return ONLY the image prompt, no explanation. Make it cinematic and spiritually 
     .from('sermon_media')
     .insert({
       sermon_id: sermonId,
-      kind,
+      kind: mediaKind,
       prompt: imagePrompt,
       storage_path: filename,
       public_url: publicUrl,

@@ -1,9 +1,19 @@
 export type SermonStatus = 'draft' | 'polished' | 'multimedia' | 'exported' | 'published'
 export type SermonStage = 1 | 2 | 3 | 4
-export type InputKind = 'text' | 'dictation' | 'audio' | 'file'
-export type TemplateType = 'prayer' | 'message' | 'story' | 'devotional' | 'teaching' | 'custom'
-export type MediaKind = 'image' | 'map'
-export type ExportFormat = 'pdf' | 'ppt' | 'video'
+export type InputKind = 'text' | 'dictation' | 'audio' | 'file' | 'bible_ref' | 'document'
+export type TemplateType =
+  | 'prayer'
+  | 'message'
+  | 'story'
+  | 'devotional'
+  | 'teaching'
+  | 'testimony'
+  | 'youth'
+  | 'small_group'
+  | 'storytelling'
+  | 'custom'
+export type MediaKind = 'image' | 'map' | 'timeline' | 'scripture_slide' | 'graphic'
+export type ExportFormat = 'pdf' | 'ppt' | 'video' | 'print'
 
 export interface Profile {
   id: string
@@ -42,6 +52,7 @@ export interface SermonDraft {
   polished_html: string | null
   template_type: TemplateType
   version: number
+  speaker_notes: string | null
   created_at: string
   updated_at: string
 }

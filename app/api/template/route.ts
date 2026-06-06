@@ -5,49 +5,98 @@ import { generateText, MODELS } from '@/lib/gemini'
 export const maxDuration = 60
 
 const TEMPLATE_INSTRUCTIONS: Record<string, string> = {
-  prayer: `Restructure this content as a Prayer-focused message. Include:
-- Opening prayer/invocation
-- Scripture-based petitions  
-- Intercession points for the congregation
-- Thanksgiving and praise sections
+  prayer: `Restructure this content as a Prayer-Focused message. Include:
+- Opening prayer/invocation with scriptural grounding
+- Scripture-based petitions for the congregation
+- Intercession points organized by topic (personal, family, church, nation)
+- Sections of thanksgiving and praise
+- Reflective scripture meditation
 - Closing benediction prayer
-Use flowing, reverent language suitable for communal prayer.`,
+Use flowing, reverent, and intimate language suitable for communal prayer.`,
 
   message: `Structure this as a classic Sunday Message with:
-- Engaging opening illustration or question
-- Scripture passage introduction
-- 3 main points with sub-points
-- Real-life application for each point
-- Stories or illustrations
-- Memorable closing with a clear call to action`,
+- A hook: engaging opening illustration, story, or provocative question
+- Scripture introduction with historical/cultural context
+- 3 clear main points, each with a sub-point and real-life application
+- Transition phrases connecting each section
+- One strong illustration or modern analogy per point
+- Memorable, quotable closing statement
+- Clear call to action for the congregation`,
 
-  story: `Reshape this into a Story-Driven sermon with:
-- A captivating opening narrative
-- Biblical story or character study as the central thread
-- Personal application woven throughout
-- Emotional connection points
-- Resolution and spiritual takeaway
-Use narrative, storytelling language.`,
+  story: `Reshape this into a Story-Driven Narrative Sermon with:
+- A captivating opening story or scene that creates emotional engagement
+- A biblical character or story as the central narrative thread
+- Parallel storyline connecting ancient and modern contexts
+- Emotional connection points that draw the listener in
+- Rising tension and resolution mirroring the Gospel
+- Personal application woven naturally throughout
+- A powerful, story-closing spiritual takeaway
+Use narrative, descriptive, conversational language.`,
 
   devotional: `Convert this into a Daily Devotional format with:
-- Opening verse (key scripture)
-- Brief reflection (2-3 paragraphs)
-- Personal application challenge
-- Prayer response
-- Closing thought/quote
-Keep it concise, intimate, and personally applicable.`,
+- A compelling opening verse displayed prominently
+- Brief, warm devotional reflection (2-3 paragraphs maximum)
+- One personal application challenge or question
+- A guided prayer response
+- A closing thought, quote, or additional scripture
+Keep it concise (under 500 words), intimate, and personally applicable.`,
 
-  teaching: `Format this as a Bible Teaching with:
-- Introduction and learning objectives
-- Context and background of Scripture
-- Verse-by-verse or thematic exposition
-- Greek/Hebrew word studies where applicable
-- Theological insights
-- Practical application points
-- Study questions for small groups
-Use clear, instructional language.`,
+  teaching: `Format this as an In-Depth Bible Teaching with:
+- Introduction with clear learning objectives
+- Historical, cultural, and literary context of the scripture
+- Verse-by-verse or thematic expository breakdown
+- Original language (Greek/Hebrew) word insights where applicable
+- Theological connections and cross-references
+- Practical application points clearly labeled
+- Discussion questions for small groups or personal reflection
+- Summary and key takeaways
+Use clear, instructional, scholarly-yet-accessible language.`,
 
-  custom: `Polish and enhance this content while maintaining its current structure. Improve flow, language, and impact.`,
+  testimony: `Transform this into a Testimony-Style Message with:
+- Opening: the "before" — setting the scene of need or struggle
+- The turning point: how God intervened or the scripture spoke
+- The "after": the transformation, healing, or revelation received
+- Biblical backing: scriptures that validate the experience
+- Universal application: how this testimony applies to everyone listening
+- An invitation: encouraging others to trust God in their own journey
+Use personal, vulnerable, emotionally honest language.`,
+
+  youth: `Reformat this as a Youth-Focused Message with:
+- A high-energy, culturally relevant opening (pop culture reference, current event, or challenge)
+- Clear, simple language (avoid heavy theological jargon)
+- Short, punchy points — 2-3 maximum
+- Relatable modern illustrations (social media, school, sports, relationships)
+- Interactive engagement prompts ("Has anyone ever felt...?")
+- A challenge or dare for the week
+- A clear, action-oriented closing that inspires change
+Use energetic, authentic, youth-culture-aware language.`,
+
+  small_group: `Convert this into a Small Group Discussion Guide with:
+- Session title and opening icebreaker question
+- Key scripture passage(s) to read together
+- Brief teaching context (3-5 minutes of reading material for the leader)
+- 5-7 discussion questions (mix of observation, interpretation, and application)
+- A practical challenge or homework assignment
+- Group prayer focus points
+- Optional: resource recommendations for deeper study
+Format with clear headers so a group leader can facilitate easily.`,
+
+  storytelling: `Reformat as a Storytelling-Format Sermon with:
+- A gripping opening story hook (first 90 seconds must captivate)
+- Interwoven biblical narrative and contemporary story running in parallel
+- Sensory, descriptive language that creates vivid mental imagery
+- Character development showing spiritual growth or transformation
+- Story beats: setup, conflict, climax, resolution, application
+- Repeated narrative motifs or imagery that reinforces the main theme
+- A closing that returns to the opening story for satisfying resolution
+Write it as a script that flows naturally when spoken aloud.`,
+
+  custom: `Polish and enhance this content while maintaining its current structure. Improve:
+- Grammar, clarity, and sentence flow
+- Transitions between sections
+- Language power and impact
+- Scripture integration
+- Closing strength and call to action`,
 }
 
 export async function POST(req: Request) {
@@ -62,9 +111,9 @@ export async function POST(req: Request) {
 
   const instructions = TEMPLATE_INSTRUCTIONS[templateType] ?? TEMPLATE_INSTRUCTIONS.custom
 
-  const prompt = `You are an expert sermon writer. Reformat the following sermon content into the specified template format.
+  const prompt = `You are an expert sermon writer and ministry communication specialist. Reformat the following sermon content into the specified template format.
 
-Template: ${templateType.toUpperCase()}
+Template: ${templateType.toUpperCase().replace('_', ' ')}
 
 Instructions:
 ${instructions}
@@ -72,11 +121,14 @@ ${instructions}
 Current Sermon Content (HTML):
 ${currentHtml}
 
-Return ONLY valid HTML content (use h2, h3, p, ul, li, blockquote, strong) that follows the template structure. No markdown, no code fences.`
+Return ONLY valid HTML content using these elements: h2, h3, p, ul, li, ol, blockquote, strong, em. 
+- Use <blockquote> for scripture passages
+- Use <h2> for main sections
+- Use <h3> for sub-sections
+- No markdown, no code fences, no explanatory text — only the sermon HTML.`
 
   const html = await generateText(prompt, MODELS.flash)
 
-  // Update the existing draft or create a new version
   let data, error
   if (draftId) {
     const result = await supabase

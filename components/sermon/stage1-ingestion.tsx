@@ -8,9 +8,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Mic, MicOff, Upload, Type, FileAudio, Trash2, Loader2, ArrowRight, X } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import {
+  Mic, MicOff, Upload, Type, FileAudio, Loader2, ArrowRight,
+  X, FileText, BookOpen, Search, FileImage, FilePlus
+} from 'lucide-react'
 import type { Sermon, SermonInput } from '@/types'
 import { toast } from 'sonner'
+import { cn } from '@/lib/utils'
 
 interface Props {
   sermon: Sermon
@@ -19,20 +24,53 @@ interface Props {
   onNext: () => void
 }
 
+const KIND_ICON: Record<string, React.ReactNode> = {
+  text: <Type className="h-3.5 w-3.5" />,
+  dictation: <Mic className="h-3.5 w-3.5" />,
+  audio: <FileAudio className="h-3.5 w-3.5" />,
+  document: <FileText className="h-3.5 w-3.5" />,
+  bible_ref: <BookOpen className="h-3.5 w-3.5" />,
+  file: <FilePlus className="h-3.5 w-3.5" />,
+}
+
+const KIND_COLOR: Record<string, string> = {
+  text: 'border-purple-500/40 text-purple-300',
+  dictation: 'border-pink-500/40 text-pink-300',
+  audio: 'border-blue-500/40 text-blue-300',
+  document: 'border-amber-500/40 text-amber-300',
+  bible_ref: 'border-green-500/40 text-green-300',
+  file: 'border-cyan-500/40 text-cyan-300',
+}
+
 export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext }: Props) {
   const supabase = createClient()
+
+  // Text
   const [typedText, setTypedText] = useState('')
+  const [savingText, setSavingText] = useState(false)
+
+  // Dictation
   const [dictationText, setDictationText] = useState('')
   const [isListening, setIsListening] = useState(false)
-  const [uploading, setUploading] = useState(false)
-  const [savingText, setSavingText] = useState(false)
+  const recognitionRef = useRef<SpeechRecognition | null>(null)
+
+  // Uploads
+  const [uploadingAudio, setUploadingAudio] = useState(false)
+  const [uploadingDoc, setUploadingDoc] = useState(false)
+
+  // Bible ref
+  const [bibleVerse, setBibleVerse] = useState('')
+  const [bibleNotes, setBibleNotes] = useState('')
+  const [savingBible, setSavingBible] = useState(false)
+
+  // Sermon meta
   const [title, setTitle] = useState(sermon.title)
   const [scriptureRef, setScriptureRef] = useState(sermon.scripture_ref ?? '')
   const [theme, setTheme] = useState(sermon.theme ?? '')
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
 
   useEffect(() => {
-    const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition
+    const SpeechRecognitionCtor =
+      (typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)) || null
     if (!SpeechRecognitionCtor) return
     const recognition = new SpeechRecognitionCtor()
     recognition.continuous = true
@@ -64,13 +102,12 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
     const { data, error } = await supabase
       .from('sermon_inputs')
       .insert({ sermon_id: sermon.id, kind: 'text', raw_text: typedText.trim() })
-      .select()
-      .single()
+      .select().single()
     setSavingText(false)
     if (error) { toast.error(error.message); return }
     onInputsChange([...inputs, data])
     setTypedText('')
-    toast.success('Text input saved')
+    toast.success('Notes saved')
   }
 
   async function saveDictation() {
@@ -79,8 +116,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
     const { data, error } = await supabase
       .from('sermon_inputs')
       .insert({ sermon_id: sermon.id, kind: 'dictation', raw_text: dictationText.trim() })
-      .select()
-      .single()
+      .select().single()
     setSavingText(false)
     if (error) { toast.error(error.message); return }
     onInputsChange([...inputs, data])
@@ -108,12 +144,11 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('audio/')) { toast.error('Please upload an audio file'); return }
-    setUploading(true)
-    const path = `${(await supabase.auth.getUser()).data.user?.id}/${sermon.id}/${Date.now()}-${file.name}`
+    setUploadingAudio(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    const path = `${user?.id}/${sermon.id}/${Date.now()}-${file.name}`
     const { error: uploadError } = await supabase.storage.from('sermon-audio').upload(path, file)
-    if (uploadError) { toast.error(uploadError.message); setUploading(false); return }
-
-    // Transcribe via API
+    if (uploadError) { toast.error(uploadError.message); setUploadingAudio(false); return }
     toast.info('Transcribing audio with Gemini…')
     const formData = new FormData()
     formData.append('audio', file)
@@ -121,12 +156,57 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
     formData.append('storagePath', path)
     const res = await fetch('/api/transcribe', { method: 'POST', body: formData })
     const json = await res.json()
-    setUploading(false)
+    setUploadingAudio(false)
     if (!res.ok) { toast.error(json.error ?? 'Transcription failed'); return }
-
     onInputsChange([...inputs, json.input])
     toast.success('Audio transcribed and saved')
     e.target.value = ''
+  }
+
+  async function handleDocumentUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const allowed = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/msword',
+      'text/plain',
+      'text/markdown',
+    ]
+    if (!allowed.includes(file.type)) {
+      toast.error('Supported formats: PDF, Word (.docx), plain text')
+      return
+    }
+    setUploadingDoc(true)
+    toast.info('Extracting text from document…')
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('sermonId', sermon.id)
+    const res = await fetch('/api/extract-doc', { method: 'POST', body: formData })
+    const json = await res.json()
+    setUploadingDoc(false)
+    if (!res.ok) { toast.error(json.error ?? 'Extraction failed'); return }
+    onInputsChange([...inputs, json.input])
+    toast.success('Document text extracted and saved')
+    e.target.value = ''
+  }
+
+  async function saveBibleRef() {
+    if (!bibleVerse.trim()) return
+    setSavingBible(true)
+    const content = bibleNotes.trim()
+      ? `Scripture: ${bibleVerse.trim()}\n\nStudy Notes: ${bibleNotes.trim()}`
+      : `Scripture: ${bibleVerse.trim()}`
+    const { data, error } = await supabase
+      .from('sermon_inputs')
+      .insert({ sermon_id: sermon.id, kind: 'bible_ref', raw_text: content })
+      .select().single()
+    setSavingBible(false)
+    if (error) { toast.error(error.message); return }
+    onInputsChange([...inputs, data])
+    setBibleVerse('')
+    setBibleNotes('')
+    toast.success('Scripture reference saved')
   }
 
   async function removeInput(id: string) {
@@ -135,19 +215,15 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
     onInputsChange(inputs.filter((i) => i.id !== id))
   }
 
-  const kindIcon: Record<string, React.ReactNode> = {
-    text: <Type className="h-3.5 w-3.5" />,
-    dictation: <Mic className="h-3.5 w-3.5" />,
-    audio: <FileAudio className="h-3.5 w-3.5" />,
-    file: <Upload className="h-3.5 w-3.5" />,
-  }
-
   return (
     <div className="space-y-6">
       {/* Sermon metadata */}
       <Card className="border-white/10 bg-white/5 text-white">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base text-white/80">Sermon Details</CardTitle>
+          <CardTitle className="text-base text-white/80 flex items-center gap-2">
+            <FileText className="h-4 w-4 text-purple-400" />
+            Sermon Details
+          </CardTitle>
         </CardHeader>
         <CardContent className="grid sm:grid-cols-3 gap-4">
           <div className="space-y-1.5 sm:col-span-3">
@@ -176,102 +252,183 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
               value={theme}
               onChange={(e) => setTheme(e.target.value)}
               onBlur={saveSermonMeta}
-              placeholder="e.g. God's unconditional love"
+              placeholder="e.g. God's unconditional love and grace"
               className="border-white/20 bg-white/10 text-white placeholder:text-white/30"
             />
           </div>
         </CardContent>
       </Card>
 
-      {/* Input methods */}
-      <div className="grid lg:grid-cols-2 gap-4">
-        {/* Type */}
-        <Card className="border-white/10 bg-white/5 text-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2 text-white/80">
-              <Type className="h-4 w-4 text-purple-400" /> Type Content
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <Textarea
-              value={typedText}
-              onChange={(e) => setTypedText(e.target.value)}
-              placeholder="Type your sermon notes, thoughts, scriptures, or any raw content here…"
-              className="min-h-[140px] border-white/20 bg-white/10 text-white placeholder:text-white/30 resize-none"
-            />
-            <Button
-              size="sm"
-              onClick={saveTextInput}
-              disabled={!typedText.trim() || savingText}
-              className="bg-purple-600 hover:bg-purple-500 w-full"
-            >
-              {savingText && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
-              Save Text
-            </Button>
-          </CardContent>
-        </Card>
-
-        {/* Dictation */}
-        <Card className="border-white/10 bg-white/5 text-white">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2 text-white/80">
-              <Mic className="h-4 w-4 text-pink-400" /> Live Dictation
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="relative">
-              <Textarea
-                value={dictationText}
-                onChange={(e) => setDictationText(e.target.value)}
-                placeholder="Click the microphone and start speaking…"
-                className="min-h-[140px] border-white/20 bg-white/10 text-white placeholder:text-white/30 resize-none"
-                readOnly={isListening}
-              />
-              {isListening && (
-                <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-red-600/80 text-white text-xs px-2 py-1 rounded-full">
-                  <span className="h-2 w-2 rounded-full bg-white animate-pulse" />
-                  Listening
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant={isListening ? 'destructive' : 'default'}
-                onClick={toggleDictation}
-                className={isListening ? '' : 'bg-pink-600 hover:bg-pink-500'}
-              >
-                {isListening ? <><MicOff className="h-3.5 w-3.5 mr-1.5" />Stop</> : <><Mic className="h-3.5 w-3.5 mr-1.5" />Start</>}
-              </Button>
-              <Button
-                size="sm"
-                onClick={saveDictation}
-                disabled={!dictationText.trim() || savingText}
-                className="flex-1 bg-purple-600 hover:bg-purple-500"
-              >
-                Save Dictation
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Audio upload */}
+      {/* Input method tabs */}
       <Card className="border-white/10 bg-white/5 text-white">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2 text-white/80">
-            <FileAudio className="h-4 w-4 text-blue-400" /> Upload Audio (Gemini Transcription)
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <label className="flex flex-col items-center gap-3 border-2 border-dashed border-white/20 rounded-lg p-6 cursor-pointer hover:border-purple-400/50 hover:bg-white/5 transition-all">
-            {uploading ? (
-              <><Loader2 className="h-8 w-8 text-purple-400 animate-spin" /><span className="text-white/60 text-sm">Uploading & transcribing…</span></>
-            ) : (
-              <><Upload className="h-8 w-8 text-white/30" /><span className="text-white/60 text-sm">Drop or click to upload an audio file</span><span className="text-white/30 text-xs">MP3, WAV, M4A, OGG supported</span></>
-            )}
-            <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={uploading} />
-          </label>
+        <CardContent className="p-0">
+          <Tabs defaultValue="notes" className="w-full">
+            <TabsList className="w-full rounded-none rounded-t-lg border-b border-white/10 bg-transparent h-auto p-0 flex">
+              {[
+                { value: 'notes', icon: <Type className="h-3.5 w-3.5" />, label: 'Type Notes' },
+                { value: 'dictate', icon: <Mic className="h-3.5 w-3.5" />, label: 'Dictate' },
+                { value: 'audio', icon: <FileAudio className="h-3.5 w-3.5" />, label: 'Upload Audio' },
+                { value: 'document', icon: <FileText className="h-3.5 w-3.5" />, label: 'Documents' },
+                { value: 'bible', icon: <BookOpen className="h-3.5 w-3.5" />, label: 'Bible Refs' },
+              ].map((tab) => (
+                <TabsTrigger
+                  key={tab.value}
+                  value={tab.value}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3 px-2 text-xs text-white/50 data-[state=active]:text-white data-[state=active]:bg-white/10 rounded-none border-r border-white/10 last:border-r-0 data-[state=active]:shadow-none"
+                >
+                  {tab.icon}
+                  <span className="hidden sm:inline">{tab.label}</span>
+                </TabsTrigger>
+              ))}
+            </TabsList>
+
+            {/* Type Notes */}
+            <TabsContent value="notes" className="p-4 mt-0 space-y-3">
+              <p className="text-white/40 text-xs">Type your sermon outline, study notes, thoughts, or any raw content.</p>
+              <Textarea
+                value={typedText}
+                onChange={(e) => setTypedText(e.target.value)}
+                placeholder="Type your sermon notes, outlines, key points, illustrations, or any raw content here…"
+                className="min-h-[180px] border-white/20 bg-white/10 text-white placeholder:text-white/30 resize-none"
+              />
+              <Button
+                size="sm"
+                onClick={saveTextInput}
+                disabled={!typedText.trim() || savingText}
+                className="bg-purple-600 hover:bg-purple-500 w-full"
+              >
+                {savingText && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
+                Save Notes
+              </Button>
+            </TabsContent>
+
+            {/* Dictation */}
+            <TabsContent value="dictate" className="p-4 mt-0 space-y-3">
+              <p className="text-white/40 text-xs">Speak your sermon ideas aloud — your voice is transcribed in real time.</p>
+              <div className="relative">
+                <Textarea
+                  value={dictationText}
+                  onChange={(e) => setDictationText(e.target.value)}
+                  placeholder="Click Start and begin speaking…"
+                  className="min-h-[180px] border-white/20 bg-white/10 text-white placeholder:text-white/30 resize-none"
+                  readOnly={isListening}
+                />
+                {isListening && (
+                  <div className="absolute top-2 right-2 flex items-center gap-1.5 bg-red-600/80 text-white text-xs px-2 py-1 rounded-full">
+                    <span className="h-2 w-2 rounded-full bg-white animate-pulse" /> Listening
+                  </div>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={isListening ? 'destructive' : 'default'}
+                  onClick={toggleDictation}
+                  className={cn('gap-1.5', isListening ? '' : 'bg-pink-600 hover:bg-pink-500')}
+                >
+                  {isListening ? <><MicOff className="h-3.5 w-3.5" />Stop</> : <><Mic className="h-3.5 w-3.5" />Start Dictation</>}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={saveDictation}
+                  disabled={!dictationText.trim() || savingText}
+                  className="flex-1 bg-purple-600 hover:bg-purple-500"
+                >
+                  {savingText && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
+                  Save Dictation
+                </Button>
+              </div>
+            </TabsContent>
+
+            {/* Audio Upload */}
+            <TabsContent value="audio" className="p-4 mt-0 space-y-3">
+              <p className="text-white/40 text-xs">Upload a sermon recording — Gemini will transcribe it automatically.</p>
+              <label className={cn(
+                'flex flex-col items-center gap-3 border-2 border-dashed border-white/20 rounded-lg p-8 cursor-pointer transition-all',
+                uploadingAudio ? 'border-purple-400/50 bg-purple-900/10' : 'hover:border-purple-400/50 hover:bg-white/5'
+              )}>
+                {uploadingAudio
+                  ? <><Loader2 className="h-10 w-10 text-purple-400 animate-spin" /><span className="text-white/60 text-sm font-medium">Transcribing with Gemini AI…</span></>
+                  : <><FileAudio className="h-10 w-10 text-white/25" /><span className="text-white/60 text-sm font-medium">Drop or click to upload audio</span><span className="text-white/30 text-xs">MP3, WAV, M4A, OGG, WebM supported</span></>
+                }
+                <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={uploadingAudio} />
+              </label>
+            </TabsContent>
+
+            {/* Document Upload */}
+            <TabsContent value="document" className="p-4 mt-0 space-y-3">
+              <p className="text-white/40 text-xs">Upload study materials, research documents, or sermon outlines — text is extracted automatically.</p>
+              <label className={cn(
+                'flex flex-col items-center gap-3 border-2 border-dashed border-white/20 rounded-lg p-8 cursor-pointer transition-all',
+                uploadingDoc ? 'border-amber-400/50 bg-amber-900/10' : 'hover:border-amber-400/50 hover:bg-white/5'
+              )}>
+                {uploadingDoc
+                  ? <><Loader2 className="h-10 w-10 text-amber-400 animate-spin" /><span className="text-white/60 text-sm font-medium">Extracting document text…</span></>
+                  : <><FileText className="h-10 w-10 text-white/25" /><span className="text-white/60 text-sm font-medium">Drop or click to upload a document</span><span className="text-white/30 text-xs">PDF, Word (.docx), or plain text (.txt) supported</span></>
+                }
+                <input
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt,.md,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown"
+                  className="hidden"
+                  onChange={handleDocumentUpload}
+                  disabled={uploadingDoc}
+                />
+              </label>
+            </TabsContent>
+
+            {/* Bible References */}
+            <TabsContent value="bible" className="p-4 mt-0 space-y-4">
+              <p className="text-white/40 text-xs">Add scripture references and study notes for contextual alignment and sermon enrichment.</p>
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-white/60 text-xs flex items-center gap-1.5">
+                    <BookOpen className="h-3.5 w-3.5 text-green-400" /> Scripture Passage
+                  </Label>
+                  <Input
+                    value={bibleVerse}
+                    onChange={(e) => setBibleVerse(e.target.value)}
+                    placeholder="e.g. John 3:16-17 or Romans 8:28"
+                    className="border-white/20 bg-white/10 text-white placeholder:text-white/30"
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && saveBibleRef()}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-white/60 text-xs">Study Notes & Context (optional)</Label>
+                  <Textarea
+                    value={bibleNotes}
+                    onChange={(e) => setBibleNotes(e.target.value)}
+                    placeholder="Add commentary, cross-references, Greek/Hebrew insights, application notes…"
+                    className="min-h-[100px] border-white/20 bg-white/10 text-white placeholder:text-white/30 resize-none text-sm"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  onClick={saveBibleRef}
+                  disabled={!bibleVerse.trim() || savingBible}
+                  className="w-full bg-green-700 hover:bg-green-600 gap-1.5"
+                >
+                  {savingBible ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
+                  Save Scripture Reference
+                </Button>
+              </div>
+
+              {/* Quick common references */}
+              <div className="space-y-2">
+                <p className="text-white/30 text-xs">Quick add common passages:</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {['John 3:16', 'Psalm 23', 'Romans 8:28', 'Phil 4:13', 'Isaiah 40:31', 'Jeremiah 29:11', 'Matthew 28:19-20', 'Proverbs 3:5-6'].map((ref) => (
+                    <button
+                      key={ref}
+                      onClick={() => setBibleVerse(ref)}
+                      className="text-xs px-2 py-1 rounded border border-white/10 text-white/40 hover:border-green-500/50 hover:text-green-300 transition-all"
+                    >
+                      {ref}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
 
@@ -279,13 +436,19 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
       {inputs.length > 0 && (
         <Card className="border-white/10 bg-white/5 text-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-white/80">Saved Inputs ({inputs.length})</CardTitle>
+            <CardTitle className="text-sm text-white/80 flex items-center gap-2">
+              <FilePlus className="h-4 w-4 text-white/50" />
+              Collected Content ({inputs.length} {inputs.length === 1 ? 'item' : 'items'})
+            </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {inputs.map((input) => (
-              <div key={input.id} className="flex items-start gap-2 bg-white/5 rounded-lg p-3">
-                <Badge variant="outline" className="border-white/20 text-white/60 text-xs gap-1 mt-0.5 shrink-0">
-                  {kindIcon[input.kind]} {input.kind}
+              <div key={input.id} className="flex items-start gap-2 bg-white/5 rounded-lg p-3 group">
+                <Badge
+                  variant="outline"
+                  className={cn('text-xs gap-1 mt-0.5 shrink-0', KIND_COLOR[input.kind] ?? 'border-white/20 text-white/60')}
+                >
+                  {KIND_ICON[input.kind]} {input.kind === 'bible_ref' ? 'scripture' : input.kind}
                 </Badge>
                 <p className="text-white/70 text-sm flex-1 line-clamp-3 leading-relaxed">
                   {input.transcription ?? input.raw_text ?? '(audio file)'}
@@ -293,7 +456,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-6 w-6 text-white/30 hover:text-red-400 hover:bg-red-950/30 shrink-0"
+                  className="h-6 w-6 text-white/20 hover:text-red-400 hover:bg-red-950/30 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => removeInput(input.id)}
                 >
                   <X className="h-3.5 w-3.5" />
@@ -305,7 +468,10 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
       )}
 
       {/* Next step */}
-      <div className="flex justify-end">
+      <div className="flex items-center justify-between">
+        <p className="text-white/30 text-xs">
+          {inputs.length === 0 ? 'Add at least one content source to continue' : `${inputs.length} source${inputs.length > 1 ? 's' : ''} ready for AI polishing`}
+        </p>
         <Button
           onClick={onNext}
           disabled={inputs.length === 0}

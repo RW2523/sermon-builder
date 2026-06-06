@@ -8,22 +8,37 @@ import Link from '@tiptap/extension-link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import {
   Sparkles, Loader2, ArrowLeft, ArrowRight, Bold, Italic,
-  Heading2, Heading3, List, Quote, Undo, Redo, Save
+  Heading2, Heading3, List, Quote, Undo, Redo, Save,
+  Lightbulb, ChevronDown, ChevronUp, Copy, CheckCheck
 } from 'lucide-react'
 import type { Sermon, SermonInput, SermonDraft, TemplateType } from '@/types'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
-const TEMPLATES: { value: TemplateType; label: string; desc: string; icon: string }[] = [
-  { value: 'message', label: 'Sunday Message', desc: 'Classic 3-point sermon', icon: '📖' },
-  { value: 'prayer', label: 'Prayer Focus', desc: 'Intercession & praise', icon: '🙏' },
-  { value: 'story', label: 'Story-Driven', desc: 'Narrative sermon style', icon: '📜' },
-  { value: 'devotional', label: 'Devotional', desc: 'Short daily reflection', icon: '✨' },
-  { value: 'teaching', label: 'Bible Teaching', desc: 'Deep expository study', icon: '🎓' },
-  { value: 'custom', label: 'Custom', desc: 'Polish as-is', icon: '✏️' },
+const TEMPLATES: { value: TemplateType; label: string; desc: string; icon: string; color: string }[] = [
+  { value: 'message',     label: 'Sunday Message',   desc: 'Classic 3-point sermon',       icon: '📖', color: 'border-purple-500 bg-purple-900/40' },
+  { value: 'prayer',      label: 'Prayer Focus',     desc: 'Intercession & praise',         icon: '🙏', color: 'border-blue-500 bg-blue-900/40' },
+  { value: 'story',       label: 'Story-Driven',     desc: 'Narrative sermon style',        icon: '📜', color: 'border-amber-500 bg-amber-900/40' },
+  { value: 'devotional',  label: 'Devotional',       desc: 'Short daily reflection',        icon: '✨', color: 'border-pink-500 bg-pink-900/40' },
+  { value: 'teaching',    label: 'Bible Teaching',   desc: 'Deep expository study',         icon: '🎓', color: 'border-teal-500 bg-teal-900/40' },
+  { value: 'testimony',   label: 'Testimony',        desc: 'Personal witness format',       icon: '🙌', color: 'border-orange-500 bg-orange-900/40' },
+  { value: 'youth',       label: 'Youth Message',    desc: 'High-energy, relevant style',   icon: '⚡', color: 'border-yellow-500 bg-yellow-900/40' },
+  { value: 'small_group', label: 'Small Group',      desc: 'Discussion guide format',       icon: '👥', color: 'border-cyan-500 bg-cyan-900/40' },
+  { value: 'storytelling',label: 'Storytelling',     desc: 'Cinematic narrative format',    icon: '🎬', color: 'border-rose-500 bg-rose-900/40' },
+  { value: 'custom',      label: 'Custom Polish',    desc: 'Enhance without restructuring', icon: '✏️', color: 'border-slate-500 bg-slate-800/40' },
 ]
+
+interface Suggestions {
+  illustrations?: { title: string; description: string }[]
+  applications?: { point: string; suggestion: string }[]
+  scripture_connections?: { reference: string; connection: string }[]
+  opening_hooks?: string[]
+  closing_calls?: string[]
+  strengthening_tips?: string[]
+}
 
 interface Props {
   sermon: Sermon
@@ -41,18 +56,21 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
   const [applying, setApplying] = useState(false)
   const [saving, setSaving] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>(draft?.template_type ?? 'message')
+  const [suggestions, setSuggestions] = useState<Suggestions | null>(null)
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [copiedSuggestion, setCopiedSuggestion] = useState<string | null>(null)
 
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: 'Your polished sermon will appear here. Click "Polish with AI" to generate it.' }),
+      Placeholder.configure({ placeholder: 'Your polished sermon will appear here. Click "Polish with AI" to generate it from your Stage 1 content.' }),
       Link.configure({ openOnClick: false }),
     ],
     content: draft?.polished_html ?? '',
     editorProps: {
-      attributes: { class: 'prose prose-invert max-w-none focus:outline-none min-h-[400px] text-white/90' },
+      attributes: { class: 'prose prose-invert max-w-none focus:outline-none min-h-[420px] text-white/90' },
     },
-    onUpdate: () => {},
   })
 
   async function handlePolish() {
@@ -75,7 +93,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
     editor?.commands.setContent(json.draft.polished_html)
     onDraftChange(json.draft)
     onSermonChange({ ...sermon, status: 'polished' })
-    toast.success('Sermon polished by AI!')
+    toast.success('Sermon polished by Gemini AI!')
   }
 
   async function handleApplyTemplate() {
@@ -97,7 +115,37 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
     if (!res.ok) { toast.error(json.error ?? 'Template conversion failed'); return }
     editor?.commands.setContent(json.draft.polished_html)
     onDraftChange(json.draft)
-    toast.success(`Converted to ${selectedTemplate} format!`)
+    const tpl = TEMPLATES.find(t => t.value === selectedTemplate)
+    toast.success(`Converted to ${tpl?.label ?? selectedTemplate} format!`)
+  }
+
+  async function handleGetSuggestions() {
+    const html = editor?.getHTML() ?? ''
+    if (!html || html === '<p></p>') { toast.error('Polish your sermon first to get suggestions'); return }
+    setLoadingSuggestions(true)
+    const res = await fetch('/api/suggestions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sermonHtml: html,
+        title: sermon.title,
+        scriptureRef: sermon.scripture_ref,
+        theme: sermon.theme,
+      }),
+    })
+    const json = await res.json()
+    setLoadingSuggestions(false)
+    if (!res.ok) { toast.error(json.error ?? 'Failed to get suggestions'); return }
+    setSuggestions(json.suggestions)
+    setShowSuggestions(true)
+    toast.success('AI suggestions generated!')
+  }
+
+  function copySuggestion(text: string, key: string) {
+    navigator.clipboard.writeText(text)
+    setCopiedSuggestion(key)
+    setTimeout(() => setCopiedSuggestion(null), 2000)
+    toast.success('Copied to clipboard')
   }
 
   const saveManualEdits = useCallback(async () => {
@@ -120,17 +168,18 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
 
   return (
     <div className="space-y-6">
-      {/* AI Polish + Template row */}
+      {/* Top controls */}
       <div className="grid lg:grid-cols-2 gap-4">
+        {/* AI Polish */}
         <Card className="border-white/10 bg-white/5 text-white">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-yellow-400" /> AI Polish
+              <Sparkles className="h-4 w-4 text-yellow-400" /> Step 1 — AI Polish
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-white/50 text-sm">
-              Gemini will transform your raw inputs into a powerful, structured sermon draft.
+            <p className="text-white/50 text-sm leading-relaxed">
+              Gemini AI transforms all your Stage 1 content — notes, dictation, audio transcriptions, documents, and scripture — into one powerful, structured sermon draft.
             </p>
             <Button
               className="w-full bg-yellow-600 hover:bg-yellow-500 gap-2"
@@ -138,17 +187,21 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
               disabled={polishing || !inputs.length}
             >
               {polishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {polishing ? 'Polishing…' : 'Polish with Gemini AI'}
+              {polishing ? 'Polishing with Gemini…' : `Polish ${inputs.length} Source${inputs.length !== 1 ? 's' : ''}`}
             </Button>
+            {!inputs.length && (
+              <p className="text-white/30 text-xs text-center">← Go to Stage 1 to add content first</p>
+            )}
           </CardContent>
         </Card>
 
+        {/* Template chooser */}
         <Card className="border-white/10 bg-white/5 text-white">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm text-white/80">Choose Template Format</CardTitle>
+            <CardTitle className="text-sm text-white/80">Step 2 — Choose Template Format</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="grid grid-cols-2 gap-1.5">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 max-h-52 overflow-y-auto pr-1">
               {TEMPLATES.map((t) => (
                 <button
                   key={t.value}
@@ -156,13 +209,13 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
                   className={cn(
                     'text-left p-2 rounded-lg border text-xs transition-all',
                     selectedTemplate === t.value
-                      ? 'border-purple-500 bg-purple-900/40 text-white'
-                      : 'border-white/10 bg-white/5 text-white/60 hover:border-white/30'
+                      ? `${t.color} text-white`
+                      : 'border-white/10 bg-white/5 text-white/60 hover:border-white/30 hover:text-white/80'
                   )}
                 >
-                  <span className="text-base">{t.icon}</span>
-                  <p className="font-medium mt-0.5">{t.label}</p>
-                  <p className="text-white/40 text-[10px]">{t.desc}</p>
+                  <span className="text-base leading-none">{t.icon}</span>
+                  <p className="font-medium mt-1 leading-tight">{t.label}</p>
+                  <p className="text-white/40 text-[10px] mt-0.5 leading-tight">{t.desc}</p>
                 </button>
               ))}
             </div>
@@ -172,7 +225,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
               disabled={applying}
             >
               {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {applying ? 'Converting…' : 'Apply Template'}
+              {applying ? 'Applying…' : `Apply ${TEMPLATES.find(t => t.value === selectedTemplate)?.label ?? ''} Format`}
             </Button>
           </CardContent>
         </Card>
@@ -180,46 +233,25 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
 
       {/* Editor */}
       <Card className="border-white/10 bg-white/5 text-white">
-        <CardHeader className="pb-2 border-b border-white/10">
-          <div className="flex items-center justify-between flex-wrap gap-2">
-            <CardTitle className="text-sm text-white/80">Edit Draft</CardTitle>
+        <CardHeader className="pb-0 border-b border-white/10">
+          <div className="flex items-center justify-between flex-wrap gap-2 pb-2">
+            <CardTitle className="text-sm text-white/80 flex items-center gap-2">
+              Edit Draft
+              {draft && <Badge variant="outline" className="border-white/20 text-white/40 text-xs">v{draft.version}</Badge>}
+            </CardTitle>
             <div className="flex items-center gap-1 flex-wrap">
-              {/* Toolbar */}
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleBold().run()} title="Bold">
-                <Bold className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic">
-                <Italic className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="Heading 2">
-                <Heading2 className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} title="Heading 3">
-                <Heading3 className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleBulletList().run()} title="List">
-                <List className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleBlockquote().run()} title="Quote">
-                <Quote className="h-3.5 w-3.5" />
-              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleBold().run()} title="Bold"><Bold className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleItalic().run()} title="Italic"><Italic className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} title="Heading 2"><Heading2 className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} title="Heading 3"><Heading3 className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleBulletList().run()} title="List"><List className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().toggleBlockquote().run()} title="Quote"><Quote className="h-3.5 w-3.5" /></Button>
               <div className="w-px h-5 bg-white/10 mx-1" />
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().undo().run()} title="Undo">
-                <Undo className="h-3.5 w-3.5" />
-              </Button>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().redo().run()} title="Redo">
-                <Redo className="h-3.5 w-3.5" />
-              </Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().undo().run()} title="Undo"><Undo className="h-3.5 w-3.5" /></Button>
+              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white hover:bg-white/10" onClick={() => editor.chain().focus().redo().run()} title="Redo"><Redo className="h-3.5 w-3.5" /></Button>
               <div className="w-px h-5 bg-white/10 mx-1" />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 text-white/60 hover:text-white hover:bg-white/10 gap-1 text-xs"
-                onClick={saveManualEdits}
-                disabled={saving || !draft}
-              >
-                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                Save
+              <Button variant="ghost" size="sm" className="h-7 text-white/60 hover:text-white hover:bg-white/10 gap-1 text-xs" onClick={saveManualEdits} disabled={saving || !draft}>
+                {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Save
               </Button>
             </div>
           </div>
@@ -229,16 +261,148 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
         </CardContent>
       </Card>
 
+      {/* AI Suggestions panel */}
+      <Card className="border-white/10 bg-white/5 text-white">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm text-white/80 flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-amber-400" /> AI Suggestions & Improvements
+            </CardTitle>
+            {suggestions && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 text-white/50 hover:text-white text-xs gap-1"
+                onClick={() => setShowSuggestions(!showSuggestions)}
+              >
+                {showSuggestions ? <><ChevronUp className="h-3.5 w-3.5" />Hide</> : <><ChevronDown className="h-3.5 w-3.5" />Show</>}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-white/40 text-sm">
+            Get AI-powered suggestions for stronger illustrations, better applications, scripture connections, and more.
+          </p>
+          <Button
+            className="w-full bg-amber-700 hover:bg-amber-600 gap-2"
+            onClick={handleGetSuggestions}
+            disabled={loadingSuggestions || !draft}
+          >
+            {loadingSuggestions ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
+            {loadingSuggestions ? 'Analyzing sermon…' : 'Get AI Suggestions'}
+          </Button>
+
+          {suggestions && showSuggestions && (
+            <div className="space-y-5 pt-2">
+              {/* Strengthening tips */}
+              {suggestions.strengthening_tips?.length && (
+                <div className="space-y-2">
+                  <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Strengthening Tips</p>
+                  <ul className="space-y-1.5">
+                    {suggestions.strengthening_tips.map((tip, i) => (
+                      <li key={i} className="flex items-start gap-2 text-sm text-white/70">
+                        <span className="text-amber-400 shrink-0 mt-0.5">•</span> {tip}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Illustrations */}
+              {suggestions.illustrations?.length && (
+                <div className="space-y-2">
+                  <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Illustration Ideas</p>
+                  <div className="space-y-2">
+                    {suggestions.illustrations.map((ill, i) => (
+                      <div key={i} className="bg-white/5 rounded-lg p-3 space-y-1 group relative">
+                        <p className="text-white/80 text-sm font-medium">{ill.title}</p>
+                        <p className="text-white/50 text-xs leading-relaxed">{ill.description}</p>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(`${ill.title}: ${ill.description}`, `ill-${i}`)}>
+                          {copiedSuggestion === `ill-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Applications */}
+              {suggestions.applications?.length && (
+                <div className="space-y-2">
+                  <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Application Points</p>
+                  <div className="space-y-2">
+                    {suggestions.applications.map((app, i) => (
+                      <div key={i} className="bg-white/5 rounded-lg p-3 space-y-1 group relative">
+                        <p className="text-white/60 text-xs text-purple-300">{app.point}</p>
+                        <p className="text-white/70 text-sm leading-relaxed">{app.suggestion}</p>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(app.suggestion, `app-${i}`)}>
+                          {copiedSuggestion === `app-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Scripture connections */}
+              {suggestions.scripture_connections?.length && (
+                <div className="space-y-2">
+                  <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Scripture Cross-References</p>
+                  <div className="space-y-1.5">
+                    {suggestions.scripture_connections.map((sc, i) => (
+                      <div key={i} className="flex items-start gap-2 bg-white/5 rounded-lg p-2.5 group relative">
+                        <Badge variant="outline" className="border-green-500/40 text-green-300 text-xs shrink-0">{sc.reference}</Badge>
+                        <p className="text-white/60 text-xs leading-relaxed">{sc.connection}</p>
+                        <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(sc.reference, `sc-${i}`)}>
+                          {copiedSuggestion === `sc-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Opening hooks */}
+              {suggestions.opening_hooks?.length && (
+                <div className="space-y-2">
+                  <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Opening Hook Ideas</p>
+                  {suggestions.opening_hooks.map((hook, i) => (
+                    <div key={i} className="bg-white/5 rounded-lg p-2.5 group relative">
+                      <p className="text-white/70 text-sm leading-relaxed pr-8">"{hook}"</p>
+                      <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(hook, `hook-${i}`)}>
+                        {copiedSuggestion === `hook-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Closing calls */}
+              {suggestions.closing_calls?.length && (
+                <div className="space-y-2">
+                  <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Closing Call to Action Ideas</p>
+                  {suggestions.closing_calls.map((cta, i) => (
+                    <div key={i} className="bg-white/5 rounded-lg p-2.5 group relative">
+                      <p className="text-white/70 text-sm leading-relaxed pr-8">"{cta}"</p>
+                      <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(cta, `cta-${i}`)}>
+                        {copiedSuggestion === `cta-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Navigation */}
       <div className="flex justify-between">
         <Button variant="ghost" onClick={onBack} className="text-white/60 hover:text-white gap-2">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
-        <Button
-          onClick={onNext}
-          disabled={!draft}
-          className="bg-purple-600 hover:bg-purple-500 gap-2"
-        >
+        <Button onClick={onNext} disabled={!draft} className="bg-purple-600 hover:bg-purple-500 gap-2">
           Add Multimedia <ArrowRight className="h-4 w-4" />
         </Button>
       </div>

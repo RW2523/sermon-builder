@@ -9,7 +9,8 @@ import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
 import {
   FileText, Presentation, Video, Share2, Loader2, ArrowLeft,
-  Copy, CheckCheck, Globe, Mic, MicOff, Download, Sparkles, ExternalLink
+  Copy, CheckCheck, Globe, Mic, MicOff, Download, Sparkles,
+  ExternalLink, BookOpen, Printer, ChevronDown, ChevronUp
 } from 'lucide-react'
 import type { Sermon, SermonDraft, SermonMedia, OutreachPost } from '@/types'
 import { toast } from 'sonner'
@@ -22,10 +23,13 @@ interface Props {
   outreach: OutreachPost | null
   onOutreachChange: (o: OutreachPost) => void
   onSermonChange: (s: Sermon) => void
+  onDraftChange: (d: SermonDraft) => void
   onBack: () => void
 }
 
-export default function Stage4Export({ sermon, draft, media, outreach, onOutreachChange, onSermonChange, onBack }: Props) {
+export default function Stage4Export({
+  sermon, draft, media, outreach, onOutreachChange, onSermonChange, onDraftChange, onBack,
+}: Props) {
   const supabase = createClient()
 
   // Export states
@@ -35,7 +39,12 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
   const [videoProgress, setVideoProgress] = useState(0)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
 
-  // Outreach states
+  // Speaker notes
+  const [generatingNotes, setGeneratingNotes] = useState(false)
+  const [showNotes, setShowNotes] = useState(false)
+  const [editableNotes, setEditableNotes] = useState(draft?.speaker_notes ?? '')
+
+  // Outreach
   const [generatingOutreach, setGeneratingOutreach] = useState(false)
   const [socialData, setSocialData] = useState<Record<string, unknown> | null>(null)
   const [publishing, setPublishing] = useState(false)
@@ -66,13 +75,55 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
     if (!draft) { toast.error('No draft available'); return }
     setExportingPPT(true)
     const { generatePPT } = await import('@/lib/exports/ppt')
-    const blob = await generatePPT(sermon, draft, media)
+    const speakerNotes = editableNotes || draft.speaker_notes
+    const blob = await generatePPT(sermon, draft, media, speakerNotes)
     setExportingPPT(false)
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url; a.download = `${sermon.title}.pptx`; a.click()
     URL.revokeObjectURL(url)
-    toast.success('PowerPoint downloaded!')
+    toast.success('PowerPoint with speaker notes downloaded!')
+  }
+
+  async function handlePrintNotes() {
+    if (!draft) { toast.error('No draft available'); return }
+    const { openPrintView } = await import('@/lib/exports/print')
+    openPrintView(sermon, draft, media, editableNotes || draft.speaker_notes)
+    toast.success('Print view opened — use Ctrl/Cmd+P to print')
+  }
+
+  async function handleGenerateSpeakerNotes() {
+    if (!draft) { toast.error('Polish your sermon first in Stage 2'); return }
+    setGeneratingNotes(true)
+    const res = await fetch('/api/speaker-notes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        draftId: draft.id,
+        sermonHtml: draft.polished_html,
+        title: sermon.title,
+        scriptureRef: sermon.scripture_ref,
+        theme: sermon.theme,
+      }),
+    })
+    const json = await res.json()
+    setGeneratingNotes(false)
+    if (!res.ok) { toast.error(json.error ?? 'Failed to generate speaker notes'); return }
+    setEditableNotes(json.notes)
+    onDraftChange(json.draft)
+    setShowNotes(true)
+    toast.success('Speaker notes generated!')
+  }
+
+  async function saveSpeakerNotes() {
+    if (!draft?.id) return
+    const { error } = await supabase
+      .from('sermon_drafts')
+      .update({ speaker_notes: editableNotes })
+      .eq('id', draft.id)
+    if (error) { toast.error(error.message); return }
+    onDraftChange({ ...draft, speaker_notes: editableNotes })
+    toast.success('Speaker notes saved')
   }
 
   async function startRecording() {
@@ -175,8 +226,60 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
 
   return (
     <div className="space-y-6">
+      {/* Speaker Notes card */}
+      <Card className="border-white/10 bg-white/5 text-white">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm text-white/80 flex items-center gap-2">
+              <BookOpen className="h-4 w-4 text-amber-400" /> Speaker Notes
+            </CardTitle>
+            {(editableNotes || draft?.speaker_notes) && (
+              <Button
+                variant="ghost" size="sm"
+                className="h-7 text-white/50 hover:text-white text-xs gap-1"
+                onClick={() => setShowNotes(!showNotes)}
+              >
+                {showNotes ? <><ChevronUp className="h-3.5 w-3.5" />Hide</> : <><ChevronDown className="h-3.5 w-3.5" />View</>}
+              </Button>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-white/40 text-sm">
+            Generate AI speaker notes with delivery tips, timing, transitions, and altar call guidance. Notes are embedded into your PPT export.
+          </p>
+          <Button
+            className="w-full bg-amber-700 hover:bg-amber-600 gap-2"
+            onClick={handleGenerateSpeakerNotes}
+            disabled={generatingNotes || !draft}
+          >
+            {generatingNotes ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+            {generatingNotes ? 'Generating speaker notes…' : 'Generate AI Speaker Notes'}
+          </Button>
+
+          {showNotes && (editableNotes || draft?.speaker_notes) && (
+            <div className="space-y-2">
+              <Textarea
+                value={editableNotes || draft?.speaker_notes || ''}
+                onChange={(e) => setEditableNotes(e.target.value)}
+                className="min-h-[200px] border-white/20 bg-white/10 text-white/80 text-xs font-mono resize-none"
+                placeholder="Speaker notes will appear here…"
+              />
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-white/20 text-white/60 hover:text-white text-xs"
+                onClick={saveSpeakerNotes}
+              >
+                Save Notes
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Export row */}
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* PDF */}
         <Card className="border-white/10 bg-white/5 text-white">
           <CardHeader className="pb-2">
@@ -185,7 +288,7 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-white/40 text-xs">Download a beautifully formatted PDF of your sermon with images.</p>
+            <p className="text-white/40 text-xs">Beautifully formatted PDF with images and scripture formatting.</p>
             <Button
               className="w-full bg-red-700 hover:bg-red-600 gap-2"
               onClick={handleExportPDF}
@@ -197,7 +300,7 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
           </CardContent>
         </Card>
 
-        {/* PPT */}
+        {/* PPT with speaker notes */}
         <Card className="border-white/10 bg-white/5 text-white">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-white/80 flex items-center gap-2">
@@ -205,7 +308,7 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-white/40 text-xs">Export as a presentation with beautiful slides and your images.</p>
+            <p className="text-white/40 text-xs">Slides with speaker notes embedded per section.</p>
             <Button
               className="w-full bg-orange-700 hover:bg-orange-600 gap-2"
               onClick={handleExportPPT}
@@ -213,6 +316,26 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
             >
               {exportingPPT ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
               {exportingPPT ? 'Generating…' : 'Download PPT'}
+            </Button>
+          </CardContent>
+        </Card>
+
+        {/* Printable notes */}
+        <Card className="border-white/10 bg-white/5 text-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm text-white/80 flex items-center gap-2">
+              <Printer className="h-4 w-4 text-green-400" /> Print Notes
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-white/40 text-xs">Printable sermon notes with visuals and speaker notes.</p>
+            <Button
+              className="w-full bg-green-700 hover:bg-green-600 gap-2"
+              onClick={handlePrintNotes}
+              disabled={!draft}
+            >
+              <Printer className="h-4 w-4" />
+              Open Print View
             </Button>
           </CardContent>
         </Card>
@@ -225,19 +348,19 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-white/40 text-xs">Record your sermon delivery — images play behind your voice.</p>
-            <div className="flex gap-2">
+            <p className="text-white/40 text-xs">Record your delivery — images play as the visual backdrop.</p>
+            <div className="flex gap-2 flex-wrap">
               <Button
                 size="sm"
                 variant={isRecording ? 'destructive' : 'default'}
-                className={isRecording ? '' : 'bg-blue-700 hover:bg-blue-600 flex-1'}
+                className={cn('flex-1', isRecording ? '' : 'bg-blue-700 hover:bg-blue-600')}
                 onClick={isRecording ? stopRecording : startRecording}
               >
                 {isRecording ? <><MicOff className="h-3.5 w-3.5 mr-1" />Stop</> : <><Mic className="h-3.5 w-3.5 mr-1" />Record</>}
               </Button>
               {recordedAudio && !isRecording && (
                 <Badge variant="outline" className="border-green-500/50 text-green-400 text-xs">
-                  {Math.floor(audioDuration)}s recorded
+                  {Math.floor(audioDuration)}s
                 </Badge>
               )}
             </div>
@@ -253,7 +376,7 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
               disabled={renderingVideo || !recordedAudio}
             >
               {renderingVideo ? <Loader2 className="h-4 w-4 animate-spin" /> : <Video className="h-4 w-4" />}
-              {renderingVideo ? `Rendering… ${videoProgress}%` : 'Render Video'}
+              {renderingVideo ? `${videoProgress}%…` : 'Render Video'}
             </Button>
             {videoUrl && (
               <a href={videoUrl} download={`${sermon.title}.webm`}>
@@ -274,6 +397,7 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <p className="text-white/40 text-sm">Generate congregation summaries and social media captions ready to copy and share.</p>
           <Button
             className="w-full bg-green-700 hover:bg-green-600 gap-2"
             onClick={handleGenerateOutreach}
@@ -285,11 +409,10 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
 
           {(socialData || outreach) && (
             <div className="space-y-4">
-              {/* Summary */}
               {outreach?.summary && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-white/50 text-xs font-medium uppercase tracking-wider">Congregation Summary</span>
+                    <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Congregation Summary</span>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(outreach.summary!, 'summary')}>
                       {copied === 'summary' ? <CheckCheck className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
@@ -298,11 +421,10 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
                 </div>
               )}
 
-              {/* Social caption */}
               {outreach?.social_caption && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-white/50 text-xs font-medium uppercase tracking-wider">Social Caption</span>
+                    <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Social Caption</span>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(outreach.social_caption!, 'caption')}>
                       {copied === 'caption' ? <CheckCheck className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
@@ -311,11 +433,10 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
                 </div>
               )}
 
-              {/* Hashtags */}
               {outreach?.hashtags?.length && (
                 <div className="space-y-1">
-                  <span className="text-white/50 text-xs font-medium uppercase tracking-wider">Hashtags</span>
-                  <div className="flex flex-wrap gap-1.5">
+                  <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Hashtags</span>
+                  <div className="flex flex-wrap gap-1.5 pt-1">
                     {outreach.hashtags.map((tag) => (
                       <Badge
                         key={tag}
@@ -330,37 +451,27 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
                 </div>
               )}
 
-              {/* Instagram */}
               {(socialData?.instagram_caption as string) && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-white/50 text-xs font-medium uppercase tracking-wider">Instagram</span>
+                    <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Instagram</span>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(socialData!.instagram_caption as string, 'ig')}>
                       {copied === 'ig' ? <CheckCheck className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
-                  <Textarea
-                    readOnly
-                    value={socialData!.instagram_caption as string}
-                    className="min-h-[80px] border-white/10 bg-white/5 text-white/70 text-xs resize-none"
-                  />
+                  <Textarea readOnly value={socialData!.instagram_caption as string} className="min-h-[80px] border-white/10 bg-white/5 text-white/70 text-xs resize-none" />
                 </div>
               )}
 
-              {/* Facebook */}
               {(socialData?.facebook_post as string) && (
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
-                    <span className="text-white/50 text-xs font-medium uppercase tracking-wider">Facebook</span>
+                    <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Facebook</span>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(socialData!.facebook_post as string, 'fb')}>
                       {copied === 'fb' ? <CheckCheck className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
-                  <Textarea
-                    readOnly
-                    value={socialData!.facebook_post as string}
-                    className="min-h-[80px] border-white/10 bg-white/5 text-white/70 text-xs resize-none"
-                  />
+                  <Textarea readOnly value={socialData!.facebook_post as string} className="min-h-[80px] border-white/10 bg-white/5 text-white/70 text-xs resize-none" />
                 </div>
               )}
             </div>
@@ -377,7 +488,7 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-white/50 text-sm">
-            Publish a public shareable page for this sermon that your congregation and community can access.
+            Create a public shareable link for your congregation and community to access this sermon online.
           </p>
           <Button
             className={cn('gap-2', outreach?.is_public ? 'bg-slate-600 hover:bg-slate-500' : 'bg-purple-600 hover:bg-purple-500')}
@@ -387,6 +498,9 @@ export default function Stage4Export({ sermon, draft, media, outreach, onOutreac
             {publishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Globe className="h-4 w-4" />}
             {outreach?.is_public ? 'Unpublish' : 'Publish Sermon'}
           </Button>
+          {!outreach && (
+            <p className="text-white/30 text-xs">Generate outreach content first to enable publishing.</p>
+          )}
           {shareUrl && (
             <div className="flex items-center gap-2 bg-white/5 rounded-lg p-3">
               <p className="text-purple-300 text-sm flex-1 truncate">{shareUrl}</p>

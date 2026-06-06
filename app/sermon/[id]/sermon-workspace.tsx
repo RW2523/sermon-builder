@@ -13,10 +13,10 @@ import Stage4Export from '@/components/sermon/stage4-export'
 import { cn } from '@/lib/utils'
 
 const STEPS = [
-  { num: 1, label: 'Ingestion', desc: 'Add content' },
-  { num: 2, label: 'Polish & Edit', desc: 'Refine & structure' },
-  { num: 3, label: 'Multimedia', desc: 'Add images' },
-  { num: 4, label: 'Export & Share', desc: 'Distribute' },
+  { num: 1, label: 'Content Ingestion', desc: 'Notes, voice & documents' },
+  { num: 2, label: 'AI Polish & Edit', desc: 'Refine & structure' },
+  { num: 3, label: 'Multimedia', desc: 'Visuals & imagery' },
+  { num: 4, label: 'Presentation & Publish', desc: 'Export & distribute' },
 ]
 
 interface Props {
@@ -145,6 +145,7 @@ export default function SermonWorkspace({ sermon: initialSermon, inputs: initial
             outreach={outreach}
             onOutreachChange={setOutreach}
             onSermonChange={setSermon}
+            onDraftChange={setDraft}
             onBack={() => { goToStage(3) }}
           />
         )}
