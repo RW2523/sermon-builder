@@ -14,13 +14,13 @@ const STAGES = [
     icon: Mic,
     title: 'Collect everything',
     desc: 'Type notes, dictate out loud, upload recordings or documents — every scattered idea lands in one place.',
-    color: 'text-pink-400 bg-pink-500/10 border-pink-500/20',
+    color: 'text-sky-400 bg-sky-500/10 border-sky-500/20',
   },
   {
     icon: Sparkles,
     title: 'Polish with AI',
     desc: 'Gemini shapes your raw material into a structured sermon, restyled into any of 10 formats you preach in.',
-    color: 'text-purple-400 bg-purple-500/10 border-purple-500/20',
+    color: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
   },
   {
     icon: ImageIcon,
@@ -54,8 +54,8 @@ export default async function Home() {
       {/* Nav */}
       <header className="relative z-10 max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 p-2 shadow-lg shadow-purple-900/40">
-            <BookOpen className="h-5 w-5" />
+          <div className="rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 p-2 shadow-lg shadow-amber-950/40">
+            <BookOpen className="h-5 w-5 text-slate-900" />
           </div>
           <span className="font-display text-lg font-semibold tracking-tight">Sermon Builder</span>
         </div>
@@ -71,14 +71,14 @@ export default async function Home() {
 
       {/* Hero */}
       <section className="relative z-10 max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
-        <div className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-sm text-purple-200 mb-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
+        <div className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-sm text-amber-200 mb-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
           <Zap className="h-3.5 w-3.5 text-amber-300" />
           AI-powered sermon studio for pastors
         </div>
         <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-semibold leading-[1.05] tracking-tight animate-in fade-in slide-in-from-bottom-3 duration-700">
           From scattered notes
           <br />
-          to <span className="bg-gradient-to-r from-purple-300 via-pink-300 to-amber-200 bg-clip-text text-transparent">Sunday-ready</span>.
+          to <span className="bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-400 bg-clip-text text-transparent">Sunday-ready</span>.
         </h1>
         <p className="mt-6 text-lg sm:text-xl text-white/60 max-w-2xl mx-auto leading-relaxed animate-in fade-in slide-in-from-bottom-3 duration-700 delay-150 fill-mode-both">
           Bring your voice memos, study notes and scripture. Leave with a polished sermon,
@@ -86,7 +86,7 @@ export default async function Home() {
         </p>
         <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-3 animate-in fade-in slide-in-from-bottom-3 duration-700 delay-300 fill-mode-both">
           <Link href="/login?demo=1">
-            <Button size="lg" className="h-12 px-7 text-base bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 shadow-xl shadow-purple-900/40 gap-2">
+            <Button size="lg" className="h-12 px-7 text-base bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 shadow-xl shadow-amber-950/40 gap-2">
               Try the live demo <ArrowRight className="h-4 w-4" />
             </Button>
           </Link>
@@ -128,7 +128,7 @@ export default async function Home() {
           <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-4">
             {OUTPUTS.map((o) => (
               <div key={o.label} className="flex items-center gap-2.5 text-white/70">
-                <o.icon className="h-4.5 w-4.5 text-purple-300" />
+                <o.icon className="h-4.5 w-4.5 text-amber-300" />
                 <span className="text-sm font-medium">{o.label}</span>
               </div>
             ))}

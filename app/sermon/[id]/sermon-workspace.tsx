@@ -61,8 +61,8 @@ export default function SermonWorkspace({ sermon: initialSermon, inputs: initial
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 p-1.5 shadow shadow-purple-900/40">
-            <BookOpen className="h-3.5 w-3.5 text-white" />
+          <div className="rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 p-1.5 shadow shadow-amber-950/40">
+            <BookOpen className="h-3.5 w-3.5 text-slate-900" />
           </div>
           <h1 className="font-display text-white font-semibold text-lg truncate flex-1">{sermon.title}</h1>
           <span className="hidden sm:block text-xs text-white/35 font-mono">Stage {activeStage} of 4</span>
@@ -81,7 +81,7 @@ export default function SermonWorkspace({ sermon: initialSermon, inputs: initial
                   <button
                     onClick={() => goToStage(step.num)}
                     className={cn(
-                      'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-all shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60',
+                      'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-all shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60',
                       active ? 'bg-white/[0.07]' : 'hover:bg-white/[0.05]'
                     )}
                   >
@@ -89,7 +89,7 @@ export default function SermonWorkspace({ sermon: initialSermon, inputs: initial
                       className={cn(
                         'h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition-all',
                         active
-                          ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-900/50 ring-2 ring-purple-400/40'
+                          ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 shadow-lg shadow-amber-950/50 ring-2 ring-amber-400/40'
                           : completed
                           ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
                           : 'border border-white/20 text-white/40'
@@ -111,7 +111,7 @@ export default function SermonWorkspace({ sermon: initialSermon, inputs: initial
                     <div className="flex-1 h-0.5 mx-2 rounded-full bg-white/10 overflow-hidden min-w-6">
                       <div
                         className={cn(
-                          'h-full rounded-full bg-gradient-to-r from-purple-400 to-indigo-400 transition-all duration-500',
+                          'h-full rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 transition-all duration-500',
                           completed ? 'w-full' : 'w-0'
                         )}
                       />

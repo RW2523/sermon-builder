@@ -19,10 +19,10 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 const TEMPLATES: { value: TemplateType; label: string; desc: string; icon: string; color: string }[] = [
-  { value: 'message',     label: 'Sunday Message',   desc: 'Classic 3-point sermon',       icon: '📖', color: 'border-purple-500 bg-purple-900/40' },
+  { value: 'message',     label: 'Sunday Message',   desc: 'Classic 3-point sermon',       icon: '📖', color: 'border-amber-400 bg-blue-950/40' },
   { value: 'prayer',      label: 'Prayer Focus',     desc: 'Intercession & praise',         icon: '🙏', color: 'border-blue-500 bg-blue-900/40' },
   { value: 'story',       label: 'Story-Driven',     desc: 'Narrative sermon style',        icon: '📜', color: 'border-amber-500 bg-amber-900/40' },
-  { value: 'devotional',  label: 'Devotional',       desc: 'Short daily reflection',        icon: '✨', color: 'border-pink-500 bg-pink-900/40' },
+  { value: 'devotional',  label: 'Devotional',       desc: 'Short daily reflection',        icon: '✨', color: 'border-sky-500 bg-sky-950/40' },
   { value: 'teaching',    label: 'Bible Teaching',   desc: 'Deep expository study',         icon: '🎓', color: 'border-teal-500 bg-teal-900/40' },
   { value: 'testimony',   label: 'Testimony',        desc: 'Personal witness format',       icon: '🙌', color: 'border-orange-500 bg-orange-900/40' },
   { value: 'youth',       label: 'Youth Message',    desc: 'High-energy, relevant style',   icon: '⚡', color: 'border-yellow-500 bg-yellow-900/40' },
@@ -235,7 +235,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
               ))}
             </div>
             <Button
-              className="w-full bg-purple-600 hover:bg-purple-500 gap-2"
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
               onClick={handleApplyTemplate}
               disabled={applying}
             >
@@ -349,7 +349,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
                   <div className="space-y-2">
                     {suggestions.applications.map((app, i) => (
                       <div key={i} className="bg-white/5 rounded-lg p-3 space-y-1 group relative">
-                        <p className="text-white/60 text-xs text-purple-300">{app.point}</p>
+                        <p className="text-white/60 text-xs text-amber-300">{app.point}</p>
                         <p className="text-white/70 text-sm leading-relaxed">{app.suggestion}</p>
                         <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(app.suggestion, `app-${i}`)}>
                           {copiedSuggestion === `app-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
@@ -417,7 +417,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
         <Button variant="ghost" onClick={onBack} className="text-white/60 hover:text-white gap-2">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
-        <Button onClick={onNext} disabled={!draft} className="bg-purple-600 hover:bg-purple-500 gap-2">
+        <Button onClick={onNext} disabled={!draft} className="bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2">
           Add Multimedia <ArrowRight className="h-4 w-4" />
         </Button>
       </div>

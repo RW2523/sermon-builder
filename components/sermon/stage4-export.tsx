@@ -500,7 +500,7 @@ export default function Stage4Export({
       <Card className="border-white/10 bg-white/5 text-white">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-            <Globe className="h-4 w-4 text-purple-400" /> Publish & Share
+            <Globe className="h-4 w-4 text-amber-400" /> Publish & Share
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -508,7 +508,7 @@ export default function Stage4Export({
             Create a public shareable link for your congregation and community to access this sermon online.
           </p>
           <Button
-            className={cn('gap-2', outreach?.is_public ? 'bg-slate-600 hover:bg-slate-500' : 'bg-purple-600 hover:bg-purple-500')}
+            className={cn('gap-2', outreach?.is_public ? 'bg-slate-600 hover:bg-slate-500' : 'bg-amber-500 hover:bg-amber-400 text-slate-950')}
             onClick={handlePublish}
             disabled={publishing || !outreach}
           >
@@ -520,7 +520,7 @@ export default function Stage4Export({
           )}
           {shareUrl && (
             <div className="flex items-center gap-2 bg-white/5 rounded-lg p-3">
-              <p className="text-purple-300 text-sm flex-1 truncate">{shareUrl}</p>
+              <p className="text-amber-300 text-sm flex-1 truncate">{shareUrl}</p>
               <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white shrink-0" onClick={() => copyText(shareUrl, 'share')}>
                 {copied === 'share' ? <CheckCheck className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
               </Button>

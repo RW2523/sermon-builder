@@ -11,7 +11,7 @@ import { BookOpen, Loader2, Mail, Lock, User, Church } from 'lucide-react'
 import { toast } from 'sonner'
 
 const inputClass =
-  'h-11 pl-10 border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus-visible:ring-purple-400/50 focus-visible:border-purple-400/50'
+  'h-11 pl-10 border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus-visible:ring-amber-400/50 focus-visible:border-amber-400/50'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -56,8 +56,8 @@ export default function SignupPage() {
     <div className="app-shell flex items-center justify-center p-4 text-white">
       <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         <Link href="/" className="flex flex-col items-center gap-3 group">
-          <div className="rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 p-3.5 shadow-xl shadow-purple-900/50 group-hover:scale-105 transition-transform">
-            <BookOpen className="h-7 w-7" />
+          <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 p-3.5 shadow-xl shadow-amber-950/50 group-hover:scale-105 transition-transform">
+            <BookOpen className="h-7 w-7 text-slate-900" />
           </div>
           <div className="text-center">
             <h1 className="font-display text-3xl font-semibold tracking-tight">Create your account</h1>
@@ -127,7 +127,7 @@ export default function SignupPage() {
 
           <Button
             type="submit"
-            className="w-full h-11 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium shadow-lg shadow-purple-900/40 mt-2"
+            className="w-full h-11 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-medium shadow-lg shadow-amber-950/40 mt-2"
             disabled={loading}
           >
             {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -136,7 +136,7 @@ export default function SignupPage() {
 
           <p className="text-center text-white/50 text-sm pt-1">
             Already have an account?{' '}
-            <Link href="/login" className="text-purple-300 hover:text-purple-200 font-medium">
+            <Link href="/login" className="text-amber-300 hover:text-amber-200 font-medium">
               Sign in
             </Link>
           </p>

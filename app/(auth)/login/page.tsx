@@ -69,8 +69,8 @@ function LoginForm() {
       <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Logo + title */}
         <Link href="/" className="flex flex-col items-center gap-3 group">
-          <div className="rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 p-3.5 shadow-xl shadow-purple-900/50 group-hover:scale-105 transition-transform">
-            <BookOpen className="h-7 w-7" />
+          <div className="rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 p-3.5 shadow-xl shadow-amber-950/50 group-hover:scale-105 transition-transform">
+            <BookOpen className="h-7 w-7 text-slate-900" />
           </div>
           <div className="text-center">
             <h1 className="font-display text-3xl font-semibold tracking-tight">Sermon Builder</h1>
@@ -109,7 +109,7 @@ function LoginForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="h-11 pl-10 border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus-visible:ring-purple-400/50 focus-visible:border-purple-400/50"
+                  className="h-11 pl-10 border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus-visible:ring-amber-400/50 focus-visible:border-amber-400/50"
                 />
               </div>
             </div>
@@ -124,13 +124,13 @@ function LoginForm() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="h-11 pl-10 border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus-visible:ring-purple-400/50 focus-visible:border-purple-400/50"
+                  className="h-11 pl-10 border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus-visible:ring-amber-400/50 focus-visible:border-amber-400/50"
                 />
               </div>
             </div>
             <Button
               type="submit"
-              className="w-full h-11 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium shadow-lg shadow-purple-900/40"
+              className="w-full h-11 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-medium shadow-lg shadow-amber-950/40"
               disabled={loading || demoLoading}
             >
               {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
@@ -140,7 +140,7 @@ function LoginForm() {
 
           <p className="text-center text-white/50 text-sm">
             Don&apos;t have an account?{' '}
-            <Link href="/signup" className="text-purple-300 hover:text-purple-200 font-medium">
+            <Link href="/signup" className="text-amber-300 hover:text-amber-200 font-medium">
               Create one free
             </Link>
           </p>

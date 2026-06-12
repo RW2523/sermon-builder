@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils'
 const STATUS_STYLE: Record<string, { label: string; class: string }> = {
   draft: { label: 'Draft', class: 'bg-slate-500/20 text-slate-300 border-slate-400/30' },
   polished: { label: 'Polished', class: 'bg-blue-500/20 text-blue-300 border-blue-400/30' },
-  multimedia: { label: 'Multimedia', class: 'bg-purple-500/20 text-purple-300 border-purple-400/30' },
+  multimedia: { label: 'Multimedia', class: 'bg-amber-500/20 text-amber-300 border-amber-400/30' },
   exported: { label: 'Exported', class: 'bg-green-500/20 text-green-300 border-green-400/30' },
   published: { label: 'Published', class: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30' },
 }
@@ -105,14 +105,14 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
       <header className="border-b border-white/[0.07] bg-black/20 backdrop-blur-md sticky top-0 z-10">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 p-2 shadow-lg shadow-purple-900/40">
-              <BookOpen className="h-4.5 w-4.5" />
+            <div className="rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 p-2 shadow-lg shadow-amber-950/40">
+              <BookOpen className="h-4.5 w-4.5 text-slate-900" />
             </div>
             <span className="font-display text-lg font-semibold tracking-tight">Sermon Builder</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-purple-500/60 to-indigo-600/60 border border-white/15 flex items-center justify-center text-xs font-semibold">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-600/60 to-blue-800/60 border border-white/15 flex items-center justify-center text-xs font-semibold">
                 {initials}
               </div>
               <div className="leading-tight">
@@ -146,7 +146,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
               </span>
               {inProgressCount > 0 && (
                 <span className="flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-purple-300" /> {inProgressCount} in progress
+                  <Sparkles className="h-3.5 w-3.5 text-amber-300" /> {inProgressCount} in progress
                 </span>
               )}
               {publishedCount > 0 && (
@@ -158,7 +158,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
           </div>
           <Button
             onClick={() => setShowNew(true)}
-            className="h-11 px-5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white gap-2 shadow-lg shadow-purple-900/40 shrink-0"
+            className="h-11 px-5 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 gap-2 shadow-lg shadow-amber-950/40 shrink-0"
           >
             <Plus className="h-4 w-4" />
             New sermon
@@ -168,8 +168,8 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
         {/* Sermon grid */}
         {sermons.length === 0 ? (
           <div className="glass rounded-2xl text-center py-20 px-6 space-y-4 animate-in fade-in duration-700">
-            <div className="mx-auto h-16 w-16 rounded-2xl bg-purple-500/10 border border-purple-400/20 flex items-center justify-center">
-              <BookMarked className="h-7 w-7 text-purple-300" />
+            <div className="mx-auto h-16 w-16 rounded-2xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center">
+              <BookMarked className="h-7 w-7 text-amber-300" />
             </div>
             <div>
               <p className="font-display text-xl font-semibold">Your first sermon starts here</p>
@@ -179,7 +179,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
             </div>
             <Button
               onClick={() => setShowNew(true)}
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 gap-2"
+              className="bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 gap-2"
             >
               <Plus className="h-4 w-4" /> Create your first sermon
             </Button>
@@ -192,7 +192,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
                 <button
                   key={sermon.id}
                   onClick={() => router.push(`/sermon/${sermon.id}`)}
-                  className="glass card-lift rounded-2xl p-5 text-left group relative overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-500 fill-mode-both focus-visible:ring-2 focus-visible:ring-purple-400/60 outline-none"
+                  className="glass card-lift rounded-2xl p-5 text-left group relative overflow-hidden animate-in fade-in slide-in-from-bottom-3 duration-500 fill-mode-both focus-visible:ring-2 focus-visible:ring-amber-400/60 outline-none"
                   style={{ animationDelay: `${i * 60}ms` }}
                 >
                   {/* Top row: status + delete */}
@@ -219,19 +219,19 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
                   </div>
 
                   {/* Title + meta */}
-                  <h3 className="font-display text-lg font-semibold leading-snug line-clamp-2 group-hover:text-purple-200 transition-colors">
+                  <h3 className="font-display text-lg font-semibold leading-snug line-clamp-2 group-hover:text-amber-200 transition-colors">
                     {sermon.title}
                   </h3>
                   <div className="mt-2 space-y-1 min-h-[2.5rem]">
                     {sermon.scripture_ref && (
                       <p className="text-white/50 text-xs flex items-center gap-1.5">
-                        <BookMarked className="h-3 w-3 text-purple-300/70 shrink-0" />
+                        <BookMarked className="h-3 w-3 text-amber-300/70 shrink-0" />
                         <span className="truncate">{sermon.scripture_ref}</span>
                       </p>
                     )}
                     {sermon.theme && (
                       <p className="text-white/40 text-xs flex items-center gap-1.5">
-                        <Target className="h-3 w-3 text-pink-300/70 shrink-0" />
+                        <Target className="h-3 w-3 text-sky-300/70 shrink-0" />
                         <span className="truncate italic">{sermon.theme}</span>
                       </p>
                     )}
@@ -250,7 +250,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
                           className={cn(
                             'h-1 flex-1 rounded-full transition-colors',
                             s <= sermon.current_stage
-                              ? 'bg-gradient-to-r from-purple-400 to-indigo-400'
+                              ? 'bg-gradient-to-r from-amber-400 to-yellow-300'
                               : 'bg-white/10'
                           )}
                         />
@@ -261,7 +261,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
                   {/* Footer */}
                   <div className="mt-4 flex items-center justify-between text-xs">
                     <span className="text-white/30">{formatDistanceToNow(sermon.updated_at)}</span>
-                    <span className="flex items-center gap-1 text-purple-300/0 group-hover:text-purple-300 transition-colors font-medium">
+                    <span className="flex items-center gap-1 text-amber-300/0 group-hover:text-amber-300 transition-colors font-medium">
                       Open <ArrowRight className="h-3 w-3" />
                     </span>
                   </div>
@@ -285,7 +285,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
             placeholder="e.g. Walking in Faith"
             value={newTitle}
             onChange={(e) => setNewTitle(e.target.value)}
-            className="h-11 border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus-visible:ring-purple-400/50"
+            className="h-11 border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus-visible:ring-amber-400/50"
             onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
             autoFocus
           />
@@ -294,7 +294,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
               Cancel
             </Button>
             <Button
-              className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500"
+              className="bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950"
               onClick={handleCreate}
               disabled={!newTitle.trim() || creating}
             >

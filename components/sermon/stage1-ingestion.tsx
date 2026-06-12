@@ -38,8 +38,8 @@ function uniqueStorageName(fileName: string) {
 }
 
 const KIND_COLOR: Record<string, string> = {
-  text: 'border-purple-500/40 text-purple-300',
-  dictation: 'border-pink-500/40 text-pink-300',
+  text: 'border-amber-400/40 text-amber-300',
+  dictation: 'border-sky-500/40 text-sky-300',
   audio: 'border-blue-500/40 text-blue-300',
   document: 'border-amber-500/40 text-amber-300',
   bible_ref: 'border-green-500/40 text-green-300',
@@ -255,7 +255,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
       <Card className="border-white/10 bg-white/5 text-white">
         <CardHeader className="pb-3">
           <CardTitle className="text-base text-white/80 flex items-center gap-2">
-            <FileText className="h-4 w-4 text-purple-400" />
+            <FileText className="h-4 w-4 text-amber-400" />
             Sermon Details
           </CardTitle>
         </CardHeader>
@@ -329,7 +329,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
                 size="sm"
                 onClick={saveTextInput}
                 disabled={!typedText.trim() || savingText}
-                className="bg-purple-600 hover:bg-purple-500 w-full"
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 w-full"
               >
                 {savingText && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
                 Save Notes
@@ -358,7 +358,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
                   size="sm"
                   variant={isListening ? 'destructive' : 'default'}
                   onClick={toggleDictation}
-                  className={cn('gap-1.5', isListening ? '' : 'bg-pink-600 hover:bg-pink-500')}
+                  className={cn('gap-1.5', isListening ? '' : 'bg-sky-600 hover:bg-sky-500')}
                 >
                   {isListening ? <><MicOff className="h-3.5 w-3.5" />Stop</> : <><Mic className="h-3.5 w-3.5" />Start Dictation</>}
                 </Button>
@@ -366,7 +366,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
                   size="sm"
                   onClick={saveDictation}
                   disabled={!dictationText.trim() || savingText}
-                  className="flex-1 bg-purple-600 hover:bg-purple-500"
+                  className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950"
                 >
                   {savingText && <Loader2 className="h-3.5 w-3.5 animate-spin mr-2" />}
                   Save Dictation
@@ -379,10 +379,10 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
               <p className="text-white/40 text-xs">Upload a sermon recording — Gemini will transcribe it automatically.</p>
               <label className={cn(
                 'flex flex-col items-center gap-3 border-2 border-dashed border-white/20 rounded-lg p-8 cursor-pointer transition-all',
-                uploadingAudio ? 'border-purple-400/50 bg-purple-900/10' : 'hover:border-purple-400/50 hover:bg-white/5'
+                uploadingAudio ? 'border-amber-400/50 bg-amber-900/10' : 'hover:border-amber-400/50 hover:bg-white/5'
               )}>
                 {uploadingAudio
-                  ? <><Loader2 className="h-10 w-10 text-purple-400 animate-spin" /><span className="text-white/60 text-sm font-medium">Transcribing with Gemini AI…</span></>
+                  ? <><Loader2 className="h-10 w-10 text-amber-400 animate-spin" /><span className="text-white/60 text-sm font-medium">Transcribing with Gemini AI…</span></>
                   : <><FileAudio className="h-10 w-10 text-white/25" /><span className="text-white/60 text-sm font-medium">Drop or click to upload audio</span><span className="text-white/30 text-xs">MP3, WAV, M4A, OGG, WebM supported</span></>
                 }
                 <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={uploadingAudio} />
@@ -510,7 +510,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
         <Button
           onClick={onNext}
           disabled={inputs.length === 0}
-          className="bg-purple-600 hover:bg-purple-500 gap-2"
+          className="bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
         >
           Polish & Edit <ArrowRight className="h-4 w-4" />
         </Button>

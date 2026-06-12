@@ -47,7 +47,7 @@ const VISUAL_TYPES: { kind: MediaKind; label: string; desc: string; icon: React.
     label: 'Scripture Slide',
     desc: 'Highlighted verse presentation',
     icon: <BookMarked className="h-4 w-4" />,
-    color: 'border-purple-500 bg-purple-900/30',
+    color: 'border-amber-400 bg-blue-950/40',
     placeholder: 'e.g. John 3:16 — For God so loved the world presentation slide',
   },
   {
@@ -64,7 +64,7 @@ const KIND_BADGE_COLOR: Record<MediaKind, string> = {
   image: 'bg-blue-700',
   map: 'bg-amber-700',
   timeline: 'bg-teal-700',
-  scripture_slide: 'bg-purple-700',
+  scripture_slide: 'bg-blue-800',
   graphic: 'bg-rose-700',
 }
 
@@ -222,7 +222,7 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
                 type="checkbox"
                 checked={highQuality}
                 onChange={(e) => setHighQuality(e.target.checked)}
-                className="accent-purple-500"
+                className="accent-amber-400"
               />
               High quality (Pro model — slower)
             </label>
@@ -238,7 +238,7 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
               {generating ? 'Generating…' : 'Generate'}
             </Button>
             <Button
-              className="flex-1 bg-purple-600 hover:bg-purple-500 gap-2"
+              className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
               onClick={() => generateImage({ kind: selectedKind, autoPrompt: true, highQuality })}
               disabled={autoGenerating || !draft}
               title="AI picks the best prompt from your sermon"
@@ -311,7 +311,7 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
                         autoFocus
                         onKeyDown={(e) => e.key === 'Enter' && saveCaption(item.id)}
                       />
-                      <Button size="sm" disabled={savingCaption} className="h-7 px-2 bg-purple-600 hover:bg-purple-500 text-xs" onClick={() => saveCaption(item.id)}>Save</Button>
+                      <Button size="sm" disabled={savingCaption} className="h-7 px-2 bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs" onClick={() => saveCaption(item.id)}>Save</Button>
                       <Button size="sm" variant="ghost" className="h-7 px-2 text-white/50" onClick={() => setEditingCaption(null)}>✕</Button>
                     </div>
                   ) : (
@@ -365,7 +365,7 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
         <Button variant="ghost" onClick={onBack} className="text-white/60 hover:text-white gap-2">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
-        <Button onClick={onNext} className="bg-purple-600 hover:bg-purple-500 gap-2">
+        <Button onClick={onNext} className="bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2">
           Export & Share <ArrowRight className="h-4 w-4" />
         </Button>
       </div>

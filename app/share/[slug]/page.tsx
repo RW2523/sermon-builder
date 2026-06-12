@@ -49,13 +49,13 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
     .order('order_index', { ascending: true })
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-900">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-950">
       {/* Header */}
       <header className="border-b border-white/10 bg-black/30 backdrop-blur sticky top-0 z-10">
         <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-2 text-white">
-            <div className="rounded-full bg-purple-600 p-1.5">
-              <BookOpen className="h-4 w-4" />
+            <div className="rounded-full bg-gradient-to-br from-amber-400 to-amber-600 p-1.5">
+              <BookOpen className="h-4 w-4 text-slate-900" />
             </div>
             <span className="font-semibold">Sermon Builder</span>
           </div>
@@ -72,7 +72,7 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
             {sermon?.title}
           </h1>
           {sermon?.scripture_ref && (
-            <p className="text-purple-300 text-lg italic">{sermon.scripture_ref}</p>
+            <p className="text-amber-300 text-lg italic">{sermon.scripture_ref}</p>
           )}
           {sermon?.theme && (
             <p className="text-white/50">{sermon.theme}</p>
@@ -91,7 +91,7 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
 
         {/* Summary */}
         {post.summary && (
-          <div className="bg-purple-900/20 border border-purple-500/20 rounded-xl p-6">
+          <div className="bg-blue-950/40 border border-amber-400/20 rounded-xl p-6">
             <p className="text-white/80 leading-relaxed text-base">{post.summary}</p>
           </div>
         )}
@@ -118,7 +118,7 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
         {/* Sermon content */}
         {draft?.polished_html && (
           <div
-            className="prose prose-invert max-w-none text-white/85 prose-headings:text-white prose-blockquote:border-l-purple-500 prose-blockquote:text-purple-200"
+            className="prose prose-invert max-w-none text-white/85 prose-headings:text-white prose-blockquote:border-l-amber-400 prose-blockquote:text-amber-200"
             dangerouslySetInnerHTML={{ __html: sanitizeHtml(draft.polished_html) }}
           />
         )}
@@ -154,7 +154,7 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
             {post.hashtags?.length ? (
               <div className="flex flex-wrap gap-1.5">
                 {post.hashtags.map((tag: string) => (
-                  <Badge key={tag} variant="outline" className="border-purple-500/40 text-purple-400 text-xs">#{tag}</Badge>
+                  <Badge key={tag} variant="outline" className="border-amber-400/40 text-amber-400 text-xs">#{tag}</Badge>
                 ))}
               </div>
             ) : null}
@@ -163,7 +163,7 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
 
         {/* Footer */}
         <div className="text-center text-white/30 text-sm pt-4 border-t border-white/10">
-          <p>Created with <Link href="/" className="text-purple-400 hover:text-purple-300">Sermon Builder</Link> — AI-powered sermon platform for pastors</p>
+          <p>Created with <Link href="/" className="text-amber-400 hover:text-amber-300">Sermon Builder</Link> — AI-powered sermon platform for pastors</p>
         </div>
       </main>
     </div>
