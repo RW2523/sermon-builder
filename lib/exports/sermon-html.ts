@@ -60,6 +60,26 @@ export function runsToText(runs: Run[]): string {
   return runs.map((r) => r.text).join('').trim()
 }
 
+/**
+ * AI drafts often use a single "Title: …" h2 and h3 for every real section.
+ * When no genuine h2 sections exist, promote h3 headings so exporters can
+ * build section structure from them.
+ */
+export function promoteHeadings(blocks: Block[]): Block[] {
+  const realH2 = blocks.filter(
+    (b) => (b.type === 'h1' || b.type === 'h2') && !/^title\s*:/i.test(runsToText(b.runs))
+  )
+  if (realH2.length > 0) return blocks
+  return blocks.map((b) => (b.type === 'h3' ? { ...b, type: 'h2' as const } : b))
+}
+
+/** Detect a trailing scripture reference like “… — Hebrews 6:19-20” */
+export function splitQuoteReference(text: string): { body: string; reference: string | null } {
+  const m = text.match(/[—–-]\s*([1-3]?\s?[A-Z][A-Za-z]+\.?\s+\d+(?::[\d\-–,\s]+\d)?)\s*["”']?\s*$/)
+  if (!m) return { body: text, reference: null }
+  return { body: text.slice(0, m.index).replace(/["”']\s*$/, '”').trim(), reference: m[1].trim() }
+}
+
 export function parseSermonHtml(html: string): Block[] {
   const doc = new DOMParser().parseFromString(html, 'text/html')
   const blocks: Block[] = []

@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf'
 import type { Sermon, SermonDraft, SermonMedia } from '@/types'
-import { parseSermonHtml, runsToText, type Run } from './sermon-html'
+import { parseSermonHtml, runsToText, splitQuoteReference, promoteHeadings, type Run } from './sermon-html'
 
 // Brand palette (RGB)
 const NAVY: [number, number, number] = [15, 27, 51]
@@ -69,9 +69,12 @@ export async function generatePDF(
   // ── Cover page ──────────────────────────────────────────────
   doc.setFillColor(...NAVY)
   doc.rect(0, 0, PAGE_W, PAGE_H, 'F')
-  doc.setFillColor(...GOLD)
-  doc.rect(0, 0, PAGE_W, 2.5, 'F')
-  doc.rect(0, PAGE_H - 2.5, PAGE_W, 2.5, 'F')
+  // Classic double frame
+  doc.setDrawColor(...GOLD)
+  doc.setLineWidth(0.9)
+  doc.rect(9, 9, PAGE_W - 18, PAGE_H - 18, 'S')
+  doc.setLineWidth(0.25)
+  doc.rect(12, 12, PAGE_W - 24, PAGE_H - 24, 'S')
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(10)
@@ -210,7 +213,7 @@ export async function generatePDF(
 
   newPage()
 
-  const blocks = parseSermonHtml(draft.polished_html ?? '')
+  const blocks = promoteHeadings(parseSermonHtml(draft.polished_html ?? ''))
   let sectionIdx = 0
 
   for (const block of blocks) {
@@ -247,20 +250,35 @@ export async function generatePDF(
     }
 
     if (block.type === 'quote') {
+      const { body, reference } = splitQuoteReference(plain)
+      const bodyRuns: Run[] = [{ text: body, italic: true }]
       // Measure first so the cream panel sizes exactly to the text
-      const innerW = CONTENT_W - 16
-      const textH = flowRuns(block.runs, { maxW: innerW, size: 11.5, font: 'times', measure: true, lineH: 5.6 })
-      const panelH = textH + 10
+      const innerX = MARGIN + 13
+      const innerW = CONTENT_W - 21
+      const textH = flowRuns(bodyRuns, { maxW: innerW, size: 11.5, font: 'times', measure: true, lineH: 5.6 })
+      const panelH = textH + 10 + (reference ? 7 : 0)
       ensureSpace(panelH + 6)
+      const panelTop = y - 5
       doc.setFillColor(...CREAM)
-      doc.rect(MARGIN, y - 5, CONTENT_W, panelH, 'F')
+      doc.rect(MARGIN, panelTop, CONTENT_W, panelH, 'F')
       doc.setFillColor(...GOLD)
-      doc.rect(MARGIN, y - 5, 1.6, panelH, 'F')
+      doc.rect(MARGIN, panelTop, 1.6, panelH, 'F')
+      // Large gold opening quote mark
+      doc.setFont('times', 'bold')
+      doc.setFontSize(30)
+      doc.setTextColor(...GOLD)
+      doc.text('“', MARGIN + 4.5, panelTop + 12)
       y += 1.5
-      flowRuns(
-        block.runs.map((r) => ({ ...r, italic: true })),
-        { x: MARGIN + 8, maxW: innerW, size: 11.5, font: 'times', color: NAVY, lineH: 5.6, breakPages: false }
-      )
+      flowRuns(bodyRuns, { x: innerX, maxW: innerW, size: 11.5, font: 'times', color: NAVY, lineH: 5.6, breakPages: false })
+      if (reference) {
+        y += 7.5
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(8.5)
+        doc.setTextColor(...GOLD)
+        doc.setCharSpace(0.5)
+        doc.text(`— ${reference.toUpperCase()}`, MARGIN + CONTENT_W - 6, y, { align: 'right' })
+        doc.setCharSpace(0)
+      }
       // Clear the panel's bottom padding plus a paragraph gap
       y += 16
       continue
@@ -288,10 +306,19 @@ export async function generatePDF(
     y += 5.4 + 3.2
   }
 
+  // ── End-of-sermon ornament ──────────────────────────────────
+  ensureSpace(20)
+  y += 6
+  doc.setDrawColor(...GOLD)
+  doc.setLineWidth(0.4)
+  doc.line(PAGE_W / 2 - 26, y, PAGE_W / 2 - 6, y)
+  doc.line(PAGE_W / 2 + 6, y, PAGE_W / 2 + 26, y)
+  doc.setFillColor(...GOLD)
+  // Small diamond between the rules
+  doc.triangle(PAGE_W / 2, y - 2.2, PAGE_W / 2 + 2.2, y, PAGE_W / 2, y + 2.2, 'F')
+  doc.triangle(PAGE_W / 2, y - 2.2, PAGE_W / 2 - 2.2, y, PAGE_W / 2, y + 2.2, 'F')
+
   // ── Visual aids ─────────────────────────────────────────────
-  if (images.length > 1 || (images.length === 1 && !images[0])) {
-    // handled below
-  }
   const galleryImages = images.slice(1) // first image lives on the cover
   if (galleryImages.length) {
     newPage()

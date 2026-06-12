@@ -9,11 +9,11 @@ const VALID_KINDS: MediaKind[] = ['image', 'map', 'timeline', 'scripture_slide',
 export const maxDuration = 60
 
 const KIND_PROMPT_SUFFIX: Record<MediaKind, string> = {
-  image: 'Cinematic, inspirational Christian illustration. Dramatic warm lighting, high quality digital art suitable for church presentations.',
-  map: 'Detailed biblical / historical map illustration. Warm sepia tones, ancient cartography aesthetic, clearly labeled locations, high quality.',
-  timeline: 'Clean visual timeline infographic showing biblical or historical events in chronological order. Light background, elegant typography, gold accent lines.',
-  scripture_slide: 'Beautiful scripture highlight slide. Dark purple or navy gradient background, elegant gold or white serif typography, subtle light rays or dove imagery. Presentation-ready.',
-  graphic: 'Custom sermon graphic. Bold, modern church graphic design with the theme as the focal point. Clean typography, powerful colors, inspirational.',
+  image: 'Masterful cinematic Christian fine-art illustration in the style of a classical oil painting. Dramatic chiaroscuro lighting with golden-hour rim light, volumetric god rays, deep navy-and-gold color grading, rich texture and painterly brushwork, epic composition with strong foreground depth, museum quality, 8k detail. Suitable for a large worship screen.',
+  map: 'Exquisite hand-drawn biblical map in the style of an antique 17th-century cartographer. Aged parchment texture, warm sepia and gold-leaf tones, ornate compass rose, elegant serif labels on key locations, decorative border flourishes, subtle terrain shading, museum-archive quality.',
+  timeline: 'Elegant biblical timeline infographic with a refined editorial design. Deep navy background, luminous gold accent lines and markers, classical serif typography, small painterly vignette illustrations at each event, balanced composition with generous spacing, premium print quality.',
+  scripture_slide: 'Breathtaking scripture verse slide. Deep navy gradient background with subtle volumetric light rays from above, the verse set in elegant gold serif lettering with refined letterspacing, delicate gold flourish ornaments framing the text, faint dove or cross silhouette in the atmosphere, premium worship-screen quality.',
+  graphic: 'Premium sermon title graphic with sophisticated church branding. Deep navy backdrop, luminous gold serif title treatment as the focal point, subtle radial glow behind the type, delicate ornamental line flourishes, cinematic atmosphere, polished and modern yet reverent, presentation-ready.',
 }
 
 const KIND_AUTO_HINT: Record<MediaKind, string> = {

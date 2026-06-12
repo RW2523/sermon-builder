@@ -1,6 +1,6 @@
 import PptxGenJS from 'pptxgenjs'
 import type { Sermon, SermonDraft, SermonMedia } from '@/types'
-import { parseSermonHtml, chunkRuns, runsToText, type Run, type Block } from './sermon-html'
+import { parseSermonHtml, chunkRuns, runsToText, splitQuoteReference, promoteHeadings, type Run, type Block } from './sermon-html'
 
 // Widescreen 16:9 canvas (inches)
 const W = 13.33
@@ -98,7 +98,7 @@ export async function generatePPT(
   pptx.author = 'Sermon Builder Studio'
   pptx.title = sermon.title
 
-  const blocks = parseSermonHtml(draft.polished_html ?? '')
+  const blocks = promoteHeadings(parseSermonHtml(draft.polished_html ?? ''))
   const sections = groupSections(blocks)
   const globalNotes = speakerNotes ?? draft.speaker_notes ?? ''
   const dateLabel = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -110,6 +110,26 @@ export async function generatePPT(
     if (!item.public_url) continue
     const data = await urlToBase64(item.public_url)
     if (data) images.push({ data, caption: item.caption, kind: item.kind })
+  }
+
+  /** Thin gold L-shaped corner flourishes — the hand-finished touch */
+  function addCorners(slide: PptxGenJS.Slide, inset = 0.42, len = 0.85, thickness = 0.022) {
+    const positions: [number, number, boolean, boolean][] = [
+      [inset, inset, false, false],
+      [W - inset - len, inset, true, false],
+      [inset, H - inset, false, true],
+      [W - inset - len, H - inset, true, true],
+    ]
+    for (const [x, y, right, bottom] of positions) {
+      slide.addShape(pptx.ShapeType.rect, {
+        x, y: bottom ? y - thickness : y, w: len, h: thickness, fill: { color: GOLD },
+      })
+      slide.addShape(pptx.ShapeType.rect, {
+        x: right ? x + len - thickness : x,
+        y: bottom ? y - len : y,
+        w: thickness, h: len, fill: { color: GOLD },
+      })
+    }
   }
 
   let slideNo = 0
@@ -137,9 +157,8 @@ export async function generatePPT(
     })
   } else {
     title.background = { color: NAVY }
-    title.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: W, h: 0.12, fill: { color: GOLD } })
-    title.addShape(pptx.ShapeType.rect, { x: 0, y: H - 0.12, w: W, h: 0.12, fill: { color: GOLD } })
   }
+  addCorners(title)
   title.addText(templateLabel, {
     x: 1, y: 1.45, w: W - 2, h: 0.4,
     fontSize: 14, color: GOLD, fontFace: SANS, align: 'center', charSpacing: 6, bold: true,
@@ -185,13 +204,18 @@ export async function generatePPT(
       const divider = pptx.addSlide()
       divider.background = { color: NAVY_DEEP }
       divider.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.18, h: H, fill: { color: GOLD } })
+      // Giant watermark number bleeding off the right edge
       divider.addText(String(sectionIdx).padStart(2, '0'), {
-        x: 0.85, y: 1.45, w: 3.2, h: 2.2,
-        fontSize: 110, color: PANEL, bold: true, fontFace: SERIF,
+        x: W - 5.6, y: 0.8, w: 5.8, h: 5.8,
+        fontSize: 290, color: PANEL, bold: true, fontFace: SERIF, align: 'right',
       })
       divider.addText(sermon.title.toUpperCase(), {
         x: 0.9, y: 0.55, w: W - 2, h: 0.35,
         fontSize: 12, color: GOLD, fontFace: SANS, charSpacing: 4,
+      })
+      divider.addText(`PART ${String(sectionIdx).padStart(2, '0')} · OF ${String(numberedSections.length).padStart(2, '0')}`, {
+        x: 0.9, y: 2.75, w: 6, h: 0.4,
+        fontSize: 13, color: GOLD, fontFace: SANS, charSpacing: 5, bold: true,
       })
       divider.addText(section.heading, {
         x: 0.9, y: 3.45, w: W - 2.4, h: 1.6,
@@ -206,25 +230,27 @@ export async function generatePPT(
     for (const block of section.blocks) {
       if (block.type === 'quote') {
         // Dedicated high-impact scripture / quote slide
+        const { body, reference } = splitQuoteReference(runsToText(block.runs))
         const quote = pptx.addSlide()
         quote.background = { color: NAVY }
+        addCorners(quote)
         quote.addText('“', {
           x: 0.9, y: 0.55, w: 2, h: 1.6,
           fontSize: 130, color: GOLD, fontFace: SERIF, bold: true,
         })
-        quote.addText(toPptRuns(block.runs, { baseColor: CREAM, boldColor: GOLD }).map(r => ({
-          ...r, options: { ...r.options, italic: true },
-        })), {
-          x: 1.6, y: 1.9, w: W - 3.2, h: 3.4,
-          fontSize: 26, fontFace: SERIF, align: 'center', valign: 'middle', lineSpacingMultiple: 1.25,
+        quote.addText(body, {
+          x: 1.6, y: 1.8, w: W - 3.2, h: 3.4,
+          fontSize: body.length > 260 ? 22 : 27, fontFace: SERIF, align: 'center', valign: 'middle',
+          lineSpacingMultiple: 1.3, italic: true, color: CREAM,
         })
         quote.addShape(pptx.ShapeType.rect, {
-          x: W / 2 - 0.7, y: 5.75, w: 1.4, h: 0.04, fill: { color: GOLD },
+          x: W / 2 - 0.7, y: 5.6, w: 1.4, h: 0.04, fill: { color: GOLD },
         })
-        if (sermon.scripture_ref) {
-          quote.addText(sermon.scripture_ref, {
-            x: 1, y: 5.95, w: W - 2, h: 0.5,
-            fontSize: 15, color: GOLD, align: 'center', fontFace: SANS, charSpacing: 2,
+        const refLabel = reference ?? sermon.scripture_ref
+        if (refLabel) {
+          quote.addText(refLabel.toUpperCase(), {
+            x: 1, y: 5.82, w: W - 2, h: 0.5,
+            fontSize: 16, color: GOLD, align: 'center', fontFace: SANS, charSpacing: 3, bold: true,
           })
         }
         quote.addNotes(`Scripture / quote:\n${runsToText(block.runs)}`)
@@ -315,6 +341,7 @@ export async function generatePPT(
       x: 0, y: 0, w: W, h: H,
       sizing: { type: 'contain', w: W, h: H },
     })
+    addCorners(slide, 0.3, 0.7)
     if (img.caption) {
       slide.addShape(pptx.ShapeType.rect, {
         x: 0, y: H - 0.85, w: W, h: 0.85, fill: { color: NAVY_DEEP, transparency: 25 },
@@ -331,8 +358,7 @@ export async function generatePPT(
   // ── Closing slide ───────────────────────────────────────────
   const close = pptx.addSlide()
   close.background = { color: NAVY_DEEP }
-  close.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: W, h: 0.12, fill: { color: GOLD } })
-  close.addShape(pptx.ShapeType.rect, { x: 0, y: H - 0.12, w: W, h: 0.12, fill: { color: GOLD } })
+  addCorners(close)
   close.addText('Amen', {
     x: 1, y: 2.5, w: W - 2, h: 1.4,
     fontSize: 60, bold: true, color: GOLD, align: 'center', fontFace: SERIF, italic: true,
