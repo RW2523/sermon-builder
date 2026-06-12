@@ -1,14 +1,18 @@
 import { notFound } from 'next/navigation'
 import { createAdminClient } from '@/lib/supabase/server'
+import { sanitizeHtml } from '@/lib/sanitize'
 import Image from 'next/image'
 import Link from 'next/link'
-import { BookOpen, Calendar, Hash, Share2, ExternalLink } from 'lucide-react'
+import { BookOpen, Calendar, Share2 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 
 export const revalidate = 60
 
 export default async function SharePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params
+  if (!/^[a-z0-9-]+$/.test(slug)) notFound()
+  // Admin client is required here: sermons/drafts/media are owner-only under
+  // RLS, and this public page must read them once the post is_public.
   const supabase = await createAdminClient()
 
   const { data: post, error } = await supabase
@@ -115,7 +119,7 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
         {draft?.polished_html && (
           <div
             className="prose prose-invert max-w-none text-white/85 prose-headings:text-white prose-blockquote:border-l-purple-500 prose-blockquote:text-purple-200"
-            dangerouslySetInnerHTML={{ __html: draft.polished_html }}
+            dangerouslySetInnerHTML={{ __html: sanitizeHtml(draft.polished_html) }}
           />
         )}
 

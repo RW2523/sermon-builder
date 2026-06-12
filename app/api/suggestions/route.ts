@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateText, MODELS } from '@/lib/gemini'
+import { checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
 
 export const maxDuration = 60
 
@@ -8,6 +9,9 @@ export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
+    return NextResponse.json({ error: 'Too many AI requests — please try again later' }, { status: 429 })
+  }
 
   const { sermonHtml, title, scriptureRef, theme } = await req.json()
   if (!sermonHtml) return NextResponse.json({ error: 'Missing sermon content' }, { status: 400 })
@@ -53,7 +57,13 @@ Provide suggestions in exactly this JSON format (return ONLY valid JSON, no mark
   ]
 }`
 
-  const raw = await generateText(prompt, MODELS.flash)
+  let raw: string
+  try {
+    raw = await generateText(prompt, MODELS.flash)
+  } catch (err) {
+    console.error('Suggestions generation failed:', err)
+    return NextResponse.json({ error: 'AI generation failed — please try again' }, { status: 502 })
+  }
   let parsed: Record<string, unknown>
   try {
     parsed = JSON.parse(raw.replace(/```json?|```/g, '').trim())

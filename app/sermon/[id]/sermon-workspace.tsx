@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, BookOpen, CheckCircle2 } from 'lucide-react'
@@ -28,7 +27,6 @@ interface Props {
 }
 
 export default function SermonWorkspace({ sermon: initialSermon, inputs: initialInputs, draft: initialDraft, media: initialMedia, outreach: initialOutreach }: Props) {
-  const router = useRouter()
   const [sermon, setSermon] = useState(initialSermon)
   const [inputs, setInputs] = useState(initialInputs)
   const [draft, setDraft] = useState(initialDraft)
@@ -37,14 +35,20 @@ export default function SermonWorkspace({ sermon: initialSermon, inputs: initial
   const [activeStage, setActiveStage] = useState(initialSermon.current_stage)
 
   async function goToStage(stage: number) {
+    // Navigation is optimistic; stage persistence failing shouldn't block the UI
     setActiveStage(stage as 1 | 2 | 3 | 4)
-    // Persist stage to server
-    await fetch(`/api/sermons/${sermon.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ current_stage: stage }),
-    })
-    setSermon((prev) => ({ ...prev, current_stage: stage as 1 | 2 | 3 | 4 }))
+    try {
+      const res = await fetch(`/api/sermons/${sermon.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ current_stage: stage }),
+      })
+      if (res.ok) {
+        setSermon((prev) => ({ ...prev, current_stage: stage as 1 | 2 | 3 | 4 }))
+      }
+    } catch {
+      // offline / transient failure — stage will re-sync on next successful save
+    }
   }
 
   return (
@@ -53,7 +57,7 @@ export default function SermonWorkspace({ sermon: initialSermon, inputs: initial
       <header className="border-b border-white/10 bg-black/20 backdrop-blur sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link href="/dashboard">
-            <Button variant="ghost" size="icon" className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/10">
+            <Button variant="ghost" size="icon" aria-label="Back to dashboard" className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/10">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>

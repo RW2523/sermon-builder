@@ -1,14 +1,5 @@
 import type { Sermon, SermonDraft, SermonMedia } from '@/types'
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/?(h[1-6]|p|li|blockquote|div)[^>]*>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"')
-    .replace(/\n{3,}/g, '\n\n').trim()
-}
+import { sanitizeHtml, escapeHtml } from '@/lib/sanitize'
 
 export function openPrintView(sermon: Sermon, draft: SermonDraft, media: SermonMedia[], speakerNotes?: string | null) {
   const date = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -18,9 +9,9 @@ export function openPrintView(sermon: Sermon, draft: SermonDraft, media: SermonM
     <div class="media-grid">
       ${media.map(m => m.public_url ? `
         <div class="media-item">
-          <img src="${m.public_url}" alt="${m.caption ?? m.prompt ?? ''}" />
-          ${m.caption ? `<p class="caption">${m.caption}</p>` : ''}
-          ${m.prompt ? `<p class="prompt-text">${m.prompt}</p>` : ''}
+          <img src="${escapeHtml(m.public_url)}" alt="${escapeHtml(m.caption ?? m.prompt ?? '')}" />
+          ${m.caption ? `<p class="caption">${escapeHtml(m.caption)}</p>` : ''}
+          ${m.prompt ? `<p class="prompt-text">${escapeHtml(m.prompt)}</p>` : ''}
         </div>
       ` : '').join('')}
     </div>
@@ -29,7 +20,7 @@ export function openPrintView(sermon: Sermon, draft: SermonDraft, media: SermonM
   const notesSection = (speakerNotes || draft.speaker_notes) ? `
     <div class="page-break"></div>
     <div class="section-header speaker-notes-header">Speaker Notes (Private — Not For Distribution)</div>
-    <div class="speaker-notes">${(speakerNotes ?? draft.speaker_notes ?? '').replace(/\n/g, '<br/>')}</div>
+    <div class="speaker-notes">${escapeHtml(speakerNotes ?? draft.speaker_notes ?? '').replace(/\n/g, '<br/>')}</div>
   ` : ''
 
   const html = `<!DOCTYPE html>
@@ -37,7 +28,7 @@ export function openPrintView(sermon: Sermon, draft: SermonDraft, media: SermonM
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${sermon.title} — Sermon Notes</title>
+  <title>${escapeHtml(sermon.title)} — Sermon Notes</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -94,17 +85,17 @@ export function openPrintView(sermon: Sermon, draft: SermonDraft, media: SermonM
 </head>
 <body>
   <div class="sermon-header">
-    <div class="sermon-title">${sermon.title}</div>
+    <div class="sermon-title">${escapeHtml(sermon.title)}</div>
     <div class="sermon-meta">
-      ${sermon.scripture_ref ? `<span>📖 ${sermon.scripture_ref}</span>` : ''}
-      ${sermon.theme ? `<span>🎯 ${sermon.theme}</span>` : ''}
+      ${sermon.scripture_ref ? `<span>📖 ${escapeHtml(sermon.scripture_ref)}</span>` : ''}
+      ${sermon.theme ? `<span>🎯 ${escapeHtml(sermon.theme)}</span>` : ''}
       <span>📅 ${date}</span>
-      <span><span class="badge">${(draft.template_type ?? 'sermon').replace('_', ' ').toUpperCase()}</span></span>
+      <span><span class="badge">${escapeHtml((draft.template_type ?? 'sermon').replace('_', ' ').toUpperCase())}</span></span>
     </div>
   </div>
 
   <div class="section-header">Sermon Content</div>
-  <div class="sermon-body">${draft.polished_html ?? ''}</div>
+  <div class="sermon-body">${sanitizeHtml(draft.polished_html ?? '')}</div>
 
   ${mediaSection}
   ${notesSection}

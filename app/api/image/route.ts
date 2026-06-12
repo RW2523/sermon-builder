@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { generateImageBase64, generateText, MODELS } from '@/lib/gemini'
+import { userOwnsSermon, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
 import type { MediaKind } from '@/types'
+
+const VALID_KINDS: MediaKind[] = ['image', 'map', 'timeline', 'scripture_slide', 'graphic']
 
 export const maxDuration = 60
 
@@ -26,9 +29,19 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
+    return NextResponse.json({ error: 'Too many AI requests — please try again later' }, { status: 429 })
+  }
+
   const { sermonId, prompt, kind = 'image', highQuality = false, autoPrompt = false, sermonText, regenerateId } = await req.json()
 
   if (!sermonId) return NextResponse.json({ error: 'Missing sermonId' }, { status: 400 })
+  if (!VALID_KINDS.includes(kind)) {
+    return NextResponse.json({ error: `Invalid kind — must be one of: ${VALID_KINDS.join(', ')}` }, { status: 400 })
+  }
+  if (!(await userOwnsSermon(supabase, sermonId, user.id))) {
+    return NextResponse.json({ error: 'Sermon not found' }, { status: 404 })
+  }
 
   const mediaKind = kind as MediaKind
 
@@ -48,7 +61,13 @@ Return ONLY the image prompt as a single sentence, no explanation, no quotes.`
 
   const enhancedPrompt = `${imagePrompt}. ${KIND_PROMPT_SUFFIX[mediaKind]}`
 
-  const base64 = await generateImageBase64(enhancedPrompt, highQuality)
+  let base64: string
+  try {
+    base64 = await generateImageBase64(enhancedPrompt, highQuality)
+  } catch (err) {
+    console.error('Image generation failed:', err)
+    return NextResponse.json({ error: 'Image generation failed — please try again' }, { status: 502 })
+  }
 
   const adminClient = await createAdminClient()
   const filename = `${user.id}/${sermonId}/${Date.now()}-${mediaKind}.png`

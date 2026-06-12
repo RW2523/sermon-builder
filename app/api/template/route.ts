@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateText, MODELS } from '@/lib/gemini'
+import { userOwnsSermon, getOwnedDraft, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
 
 export const maxDuration = 60
 
@@ -104,9 +105,22 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
+    return NextResponse.json({ error: 'Too many AI requests — please try again later' }, { status: 429 })
+  }
+
   const { sermonId, draftId, currentHtml, templateType } = await req.json()
   if (!sermonId || !currentHtml || !templateType) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
+  }
+  if (!(await userOwnsSermon(supabase, sermonId, user.id))) {
+    return NextResponse.json({ error: 'Sermon not found' }, { status: 404 })
+  }
+  if (draftId) {
+    const draft = await getOwnedDraft(supabase, draftId)
+    if (!draft || draft.sermon_id !== sermonId) {
+      return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
+    }
   }
 
   const instructions = TEMPLATE_INSTRUCTIONS[templateType] ?? TEMPLATE_INSTRUCTIONS.custom
@@ -127,7 +141,13 @@ Return ONLY valid HTML content using these elements: h2, h3, p, ul, li, ol, bloc
 - Use <h3> for sub-sections
 - No markdown, no code fences, no explanatory text — only the sermon HTML.`
 
-  const html = await generateText(prompt, MODELS.flash)
+  let html: string
+  try {
+    html = await generateText(prompt, MODELS.flash)
+  } catch (err) {
+    console.error('Template generation failed:', err)
+    return NextResponse.json({ error: 'AI generation failed — please try again' }, { status: 502 })
+  }
 
   let data, error
   if (draftId) {

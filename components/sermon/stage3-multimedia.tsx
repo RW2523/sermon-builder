@@ -89,6 +89,7 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
   const [regenerating, setRegenerating] = useState<GeneratingState>({})
   const [editingCaption, setEditingCaption] = useState<string | null>(null)
   const [captionText, setCaptionText] = useState('')
+  const [savingCaption, setSavingCaption] = useState(false)
 
   const selectedType = VISUAL_TYPES.find(t => t.kind === selectedKind)!
 
@@ -106,34 +107,38 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
     else if (isAuto) setAutoGenerating(true)
     else setGenerating(true)
 
-    const res = await fetch('/api/image', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sermonId: sermon.id,
-        prompt: opts.prompt ?? '',
-        kind: opts.kind,
-        highQuality: opts.highQuality ?? false,
-        autoPrompt: isAuto,
-        sermonText: draft?.polished_html ?? '',
-        regenerateId: opts.regenerateId,
-      }),
-    })
+    try {
+      const res = await fetch('/api/image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sermonId: sermon.id,
+          prompt: opts.prompt ?? '',
+          kind: opts.kind,
+          highQuality: opts.highQuality ?? false,
+          autoPrompt: isAuto,
+          sermonText: draft?.polished_html ?? '',
+          regenerateId: opts.regenerateId,
+        }),
+      })
 
-    if (isRegen) setRegenerating(r => { const n = { ...r }; delete n[opts.regenerateId!]; return n })
-    else if (isAuto) setAutoGenerating(false)
-    else setGenerating(false)
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Image generation failed'); return }
 
-    const json = await res.json()
-    if (!res.ok) { toast.error(json.error ?? 'Image generation failed'); return }
-
-    if (isRegen) {
-      onMediaChange(media.map(m => m.id === opts.regenerateId ? json.media : m))
-      toast.success('Image regenerated!')
-    } else {
-      onMediaChange([...media, json.media])
-      setCustomPrompt('')
-      toast.success('Visual generated!')
+      if (isRegen) {
+        onMediaChange(media.map(m => m.id === opts.regenerateId ? json.media : m))
+        toast.success('Image regenerated!')
+      } else {
+        onMediaChange([...media, json.media])
+        setCustomPrompt('')
+        toast.success('Visual generated!')
+      }
+    } catch {
+      toast.error('Image generation failed — check your connection')
+    } finally {
+      if (isRegen) setRegenerating(r => { const n = { ...r }; delete n[opts.regenerateId!]; return n })
+      else if (isAuto) setAutoGenerating(false)
+      else setGenerating(false)
     }
   }
 
@@ -145,12 +150,15 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
   }
 
   async function saveCaption(id: string) {
+    if (savingCaption) return
+    setSavingCaption(true)
     const { data, error } = await supabase
       .from('sermon_media')
       .update({ caption: captionText })
       .eq('id', id)
       .select()
       .single()
+    setSavingCaption(false)
     if (error) { toast.error(error.message); return }
     onMediaChange(media.map((m) => (m.id === id ? data : m)))
     setEditingCaption(null)
@@ -303,7 +311,7 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
                         autoFocus
                         onKeyDown={(e) => e.key === 'Enter' && saveCaption(item.id)}
                       />
-                      <Button size="sm" className="h-7 px-2 bg-purple-600 hover:bg-purple-500 text-xs" onClick={() => saveCaption(item.id)}>Save</Button>
+                      <Button size="sm" disabled={savingCaption} className="h-7 px-2 bg-purple-600 hover:bg-purple-500 text-xs" onClick={() => saveCaption(item.id)}>Save</Button>
                       <Button size="sm" variant="ghost" className="h-7 px-2 text-white/50" onClick={() => setEditingCaption(null)}>✕</Button>
                     </div>
                   ) : (
@@ -348,7 +356,7 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
         <div className="text-center py-16 text-white/30 space-y-2">
           <ImageIcon className="h-10 w-10 mx-auto opacity-30" />
           <p className="text-sm">No visuals yet — generate your first one above</p>
-          <p className="text-xs text-white/20">Try "Auto from Sermon" for a quick AI-suggested visual</p>
+          <p className="text-xs text-white/20">Try &ldquo;Auto from Sermon&rdquo; for a quick AI-suggested visual</p>
         </div>
       )}
 

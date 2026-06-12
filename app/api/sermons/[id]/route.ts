@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+const PATCHABLE_FIELDS = ['title', 'scripture_ref', 'theme', 'status', 'current_stage'] as const
+
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
@@ -25,9 +27,17 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await req.json()
+  const updates: Record<string, unknown> = {}
+  for (const field of PATCHABLE_FIELDS) {
+    if (field in body) updates[field] = body[field]
+  }
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: 'No updatable fields provided' }, { status: 400 })
+  }
+
   const { data, error } = await supabase
     .from('sermons')
-    .update(body)
+    .update(updates)
     .eq('id', id)
     .eq('user_id', user.id)
     .select()

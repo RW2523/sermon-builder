@@ -19,7 +19,13 @@ export async function generateText(prompt: string, model = MODELS.flash): Promis
     model,
     contents: prompt,
   })
-  return response.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
+  const text = (response.candidates?.[0]?.content?.parts ?? [])
+    .map((part) => ('text' in part ? part.text ?? '' : ''))
+    .join('')
+  if (!text.trim()) {
+    throw new Error(`Gemini returned an empty response (model: ${model}, finishReason: ${response.candidates?.[0]?.finishReason ?? 'unknown'})`)
+  }
+  return text
 }
 
 export async function generateImageBase64(prompt: string, highQuality = false): Promise<string> {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateText, MODELS } from '@/lib/gemini'
+import { userOwnsSermon, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
 
 export const maxDuration = 60
 
@@ -8,10 +9,16 @@ export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
+    return NextResponse.json({ error: 'Too many AI requests — please try again later' }, { status: 429 })
+  }
 
   const { sermonId, inputs, title, scriptureRef, theme } = await req.json()
   if (!sermonId || !inputs?.length) {
     return NextResponse.json({ error: 'Missing sermonId or inputs' }, { status: 400 })
+  }
+  if (!(await userOwnsSermon(supabase, sermonId, user.id))) {
+    return NextResponse.json({ error: 'Sermon not found' }, { status: 404 })
   }
 
   const rawContent = inputs
@@ -38,7 +45,13 @@ Instructions:
 5. Add transition phrases between sections.
 6. Return ONLY the HTML content, no markdown code fences or extra text.`
 
-  const html = await generateText(prompt, MODELS.flash)
+  let html: string
+  try {
+    html = await generateText(prompt, MODELS.flash)
+  } catch (err) {
+    console.error('Polish generation failed:', err)
+    return NextResponse.json({ error: 'AI generation failed — please try again' }, { status: 502 })
+  }
 
   // Upsert draft
   const { data: existing } = await supabase

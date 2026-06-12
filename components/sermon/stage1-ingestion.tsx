@@ -10,8 +10,8 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  Mic, MicOff, Upload, Type, FileAudio, Loader2, ArrowRight,
-  X, FileText, BookOpen, Search, FileImage, FilePlus
+  Mic, MicOff, Type, FileAudio, Loader2, ArrowRight,
+  X, FileText, BookOpen, FilePlus
 } from 'lucide-react'
 import type { Sermon, SermonInput } from '@/types'
 import { toast } from 'sonner'
@@ -31,6 +31,10 @@ const KIND_ICON: Record<string, React.ReactNode> = {
   document: <FileText className="h-3.5 w-3.5" />,
   bible_ref: <BookOpen className="h-3.5 w-3.5" />,
   file: <FilePlus className="h-3.5 w-3.5" />,
+}
+
+function uniqueStorageName(fileName: string) {
+  return `${Date.now()}-${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`
 }
 
 const KIND_COLOR: Record<string, string> = {
@@ -67,6 +71,9 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
   const [title, setTitle] = useState(sermon.title)
   const [scriptureRef, setScriptureRef] = useState(sermon.scripture_ref ?? '')
   const [theme, setTheme] = useState(sermon.theme ?? '')
+  const lastSavedMeta = useRef(
+    JSON.stringify({ title: sermon.title, scripture_ref: sermon.scripture_ref ?? '', theme: sermon.theme ?? '' })
+  )
 
   useEffect(() => {
     const SpeechRecognitionCtor =
@@ -89,11 +96,24 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
   }, [])
 
   async function saveSermonMeta() {
-    await fetch(`/api/sermons/${sermon.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ title, scripture_ref: scriptureRef, theme }),
-    })
+    const payload = JSON.stringify({ title, scripture_ref: scriptureRef, theme })
+    if (payload === lastSavedMeta.current) return
+    lastSavedMeta.current = payload
+    try {
+      const res = await fetch(`/api/sermons/${sermon.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      })
+      if (!res.ok) {
+        lastSavedMeta.current = ''
+        const json = await res.json().catch(() => null)
+        toast.error(json?.error ?? 'Failed to save sermon details')
+      }
+    } catch {
+      lastSavedMeta.current = ''
+      toast.error('Failed to save sermon details — check your connection')
+    }
   }
 
   async function saveTextInput() {
@@ -146,7 +166,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
     if (!file.type.startsWith('audio/')) { toast.error('Please upload an audio file'); return }
     setUploadingAudio(true)
     const { data: { user } } = await supabase.auth.getUser()
-    const path = `${user?.id}/${sermon.id}/${Date.now()}-${file.name}`
+    const path = `${user?.id}/${sermon.id}/${uniqueStorageName(file.name)}`
     const { error: uploadError } = await supabase.storage.from('sermon-audio').upload(path, file)
     if (uploadError) { toast.error(uploadError.message); setUploadingAudio(false); return }
     toast.info('Transcribing audio with Gemini…')
@@ -154,13 +174,18 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
     formData.append('audio', file)
     formData.append('sermonId', sermon.id)
     formData.append('storagePath', path)
-    const res = await fetch('/api/transcribe', { method: 'POST', body: formData })
-    const json = await res.json()
-    setUploadingAudio(false)
-    if (!res.ok) { toast.error(json.error ?? 'Transcription failed'); return }
-    onInputsChange([...inputs, json.input])
-    toast.success('Audio transcribed and saved')
-    e.target.value = ''
+    try {
+      const res = await fetch('/api/transcribe', { method: 'POST', body: formData })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Transcription failed'); return }
+      onInputsChange([...inputs, json.input])
+      toast.success('Audio transcribed and saved')
+      e.target.value = ''
+    } catch {
+      toast.error('Transcription failed — check your connection')
+    } finally {
+      setUploadingAudio(false)
+    }
   }
 
   async function handleDocumentUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -182,13 +207,18 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
     const formData = new FormData()
     formData.append('file', file)
     formData.append('sermonId', sermon.id)
-    const res = await fetch('/api/extract-doc', { method: 'POST', body: formData })
-    const json = await res.json()
-    setUploadingDoc(false)
-    if (!res.ok) { toast.error(json.error ?? 'Extraction failed'); return }
-    onInputsChange([...inputs, json.input])
-    toast.success('Document text extracted and saved')
-    e.target.value = ''
+    try {
+      const res = await fetch('/api/extract-doc', { method: 'POST', body: formData })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Extraction failed'); return }
+      onInputsChange([...inputs, json.input])
+      toast.success('Document text extracted and saved')
+      e.target.value = ''
+    } catch {
+      toast.error('Extraction failed — check your connection')
+    } finally {
+      setUploadingDoc(false)
+    }
   }
 
   async function saveBibleRef() {
@@ -456,6 +486,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Remove content source"
                   className="h-6 w-6 text-white/20 hover:text-red-400 hover:bg-red-950/30 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                   onClick={() => removeInput(input.id)}
                 >

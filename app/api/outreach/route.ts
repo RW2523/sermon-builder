@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { generateText, MODELS } from '@/lib/gemini'
+import { userOwnsSermon, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
 import { v4 as uuidv4 } from 'uuid'
 
 export const maxDuration = 60
@@ -9,9 +10,15 @@ export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
+    return NextResponse.json({ error: 'Too many AI requests — please try again later' }, { status: 429 })
+  }
 
   const { sermonId, sermonHtml, title, scriptureRef, theme } = await req.json()
   if (!sermonId) return NextResponse.json({ error: 'Missing sermonId' }, { status: 400 })
+  if (!(await userOwnsSermon(supabase, sermonId, user.id))) {
+    return NextResponse.json({ error: 'Sermon not found' }, { status: 404 })
+  }
 
   const content = sermonHtml
     ? sermonHtml.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').slice(0, 1200)
@@ -37,15 +44,26 @@ Return a JSON object with exactly these fields:
 
 Return ONLY valid JSON, no markdown fences.`
 
-  const raw = await generateText(prompt, MODELS.flash)
+  let raw: string
+  try {
+    raw = await generateText(prompt, MODELS.flash)
+  } catch (err) {
+    console.error('Outreach generation failed:', err)
+    return NextResponse.json({ error: 'AI generation failed — please try again' }, { status: 502 })
+  }
   let parsed: Record<string, unknown>
   try {
     parsed = JSON.parse(raw.replace(/```json?|```/g, '').trim())
   } catch {
-    parsed = { summary: raw, social_caption: raw.slice(0, 200), hashtags: [] }
+    return NextResponse.json({ error: 'AI returned an unexpected format — please try again' }, { status: 502 })
   }
+  if (typeof parsed.summary !== 'string' || typeof parsed.social_caption !== 'string') {
+    return NextResponse.json({ error: 'AI returned an unexpected format — please try again' }, { status: 502 })
+  }
+  if (!Array.isArray(parsed.hashtags)) parsed.hashtags = []
 
-  const share_slug = `${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').slice(0, 40)}-${uuidv4().slice(0, 8)}`
+  const titleSlug = String(title ?? 'sermon').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40) || 'sermon'
+  const share_slug = `${titleSlug}-${uuidv4()}`
 
   // Upsert outreach post
   const { data: existing } = await supabase

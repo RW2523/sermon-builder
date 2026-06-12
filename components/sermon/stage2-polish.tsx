@@ -369,7 +369,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
                   <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Opening Hook Ideas</p>
                   {suggestions.opening_hooks.map((hook, i) => (
                     <div key={i} className="bg-white/5 rounded-lg p-2.5 group relative">
-                      <p className="text-white/70 text-sm leading-relaxed pr-8">"{hook}"</p>
+                      <p className="text-white/70 text-sm leading-relaxed pr-8">&ldquo;{hook}&rdquo;</p>
                       <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(hook, `hook-${i}`)}>
                         {copiedSuggestion === `hook-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
                       </Button>
@@ -384,7 +384,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
                   <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Closing Call to Action Ideas</p>
                   {suggestions.closing_calls.map((cta, i) => (
                     <div key={i} className="bg-white/5 rounded-lg p-2.5 group relative">
-                      <p className="text-white/70 text-sm leading-relaxed pr-8">"{cta}"</p>
+                      <p className="text-white/70 text-sm leading-relaxed pr-8">&ldquo;{cta}&rdquo;</p>
                       <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(cta, `cta-${i}`)}>
                         {copiedSuggestion === `cta-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
                       </Button>

@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { checkRateLimit } from '@/lib/api/guards'
 
-const DEMO_EMAIL = process.env.DEMO_EMAIL ?? 'demo@sermonbuilder.app'
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD ?? 'Demo@SermonBuilder2026!'
+const DEMO_EMAIL = process.env.DEMO_EMAIL
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD
 
-export async function POST() {
+export async function POST(req: Request) {
+  if (!DEMO_EMAIL || !DEMO_PASSWORD) {
+    return NextResponse.json({ error: 'Demo login is not configured' }, { status: 503 })
+  }
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  if (!checkRateLimit(`demo-login:${ip}`, 10, 15 * 60 * 1000)) {
+    return NextResponse.json({ error: 'Too many attempts — please try again later' }, { status: 429 })
+  }
   const supabase = await createClient()
 
   // Try signing in first

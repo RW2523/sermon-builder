@@ -142,8 +142,15 @@ export default function Stage4Export({
       startTimeRef.current = Date.now()
       recorder.start()
       setIsRecording(true)
-    } catch {
-      toast.error('Microphone access denied')
+    } catch (err) {
+      const e = err as DOMException
+      if (e?.name === 'NotAllowedError') {
+        toast.error('Microphone access denied — allow it in your browser settings')
+      } else if (e?.name === 'NotFoundError') {
+        toast.error('No microphone found on this device')
+      } else {
+        toast.error(`Could not start recording: ${e?.message ?? 'unknown error'}`)
+      }
     }
   }
 

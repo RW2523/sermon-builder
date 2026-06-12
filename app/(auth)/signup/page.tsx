@@ -39,8 +39,11 @@ export default function SignupPage() {
     }
     // Update profile with church name
     const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      await supabase.from('profiles').update({ church }).eq('id', user.id)
+    if (user && church.trim()) {
+      const { error: profileError } = await supabase.from('profiles').update({ church }).eq('id', user.id)
+      if (profileError) {
+        toast.warning('Account created, but saving your church name failed — you can update it later.')
+      }
     }
     toast.success('Account created! Welcome to Sermon Builder.')
     router.push('/dashboard')
