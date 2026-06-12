@@ -1,0 +1,47 @@
+stages:
+  - check
+  - deploy
+
+default:
+  image: node:22
+
+cache:
+  key:
+    files:
+      - package-lock.json
+  paths:
+    - .npm/
+
+# Lint, type-check, and build on every MR and on main
+check:
+  stage: check
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == "main"
+  variables:
+    # Build-time placeholders — real values are pulled from Vercel at deploy time.
+    # All data-touching pages are force-dynamic, so nothing real is needed to build.
+    NEXT_PUBLIC_SUPABASE_URL: "https://placeholder.supabase.co"
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: "placeholder"
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npm run lint
+    - npx tsc --noEmit
+    - npm run build
+
+# Deploy to Vercel production on main.
+# Requires CI/CD variables (Settings → CI/CD → Variables, masked):
+#   VERCEL_TOKEN       — from https://vercel.com/account/tokens
+#   VERCEL_ORG_ID      — team_TjrgIf7wOazD9zjuNwL20Isf
+#   VERCEL_PROJECT_ID  — prj_ggqr6kjwljmntMKqzy8n7dqZFdxq
+deploy_production:
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+  environment:
+    name: production
+  script:
+    - npm ci --cache .npm --prefer-offline
+    - npx vercel pull --yes --environment=production --token=$VERCEL_TOKEN
+    - npx vercel build --prod --token=$VERCEL_TOKEN
+    - npx vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
