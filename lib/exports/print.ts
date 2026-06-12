@@ -40,28 +40,28 @@ export function openPrintView(sermon: Sermon, draft: SermonDraft, media: SermonM
       padding: 40px 32px;
       line-height: 1.7;
     }
-    .sermon-header { border-bottom: 3px solid #4c1d95; padding-bottom: 20px; margin-bottom: 28px; }
-    .sermon-title { font-size: 28px; font-weight: bold; color: #1e1b4b; margin-bottom: 8px; }
+    .sermon-header { border-bottom: 3px solid #0f1b33; padding-bottom: 20px; margin-bottom: 28px; }
+    .sermon-title { font-size: 28px; font-weight: bold; color: #0f1b33; margin-bottom: 8px; }
     .sermon-meta { font-size: 13px; color: #6b7280; display: flex; flex-wrap: wrap; gap: 12px; }
     .sermon-meta span { display: flex; align-items: center; gap: 4px; }
-    .badge { background: #4c1d95; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px; }
+    .badge { background: #0f1b33; color: white; padding: 2px 10px; border-radius: 12px; font-size: 11px; }
     .section-header {
       font-size: 11px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase;
-      color: #7c3aed; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px;
+      color: #a07b24; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px;
       margin: 28px 0 14px;
     }
     .sermon-body { font-size: 15px; }
-    .sermon-body h2 { font-size: 20px; font-weight: bold; color: #1e1b4b; margin: 24px 0 8px; }
-    .sermon-body h3 { font-size: 16px; font-weight: bold; color: #4c1d95; margin: 18px 0 6px; }
+    .sermon-body h2 { font-size: 20px; font-weight: bold; color: #0f1b33; margin: 24px 0 8px; }
+    .sermon-body h3 { font-size: 16px; font-weight: bold; color: #0f1b33; margin: 18px 0 6px; }
     .sermon-body p { margin-bottom: 12px; }
     .sermon-body ul, .sermon-body ol { margin: 8px 0 12px 24px; }
     .sermon-body li { margin-bottom: 6px; }
     .sermon-body blockquote {
-      border-left: 4px solid #7c3aed; margin: 16px 0;
-      padding: 10px 16px; background: #f5f3ff; font-style: italic; color: #374151;
+      border-left: 4px solid #a07b24; margin: 16px 0;
+      padding: 10px 16px; background: #f7f3e8; font-style: italic; color: #374151;
       border-radius: 0 8px 8px 0;
     }
-    .sermon-body strong { color: #1e1b4b; }
+    .sermon-body strong { color: #0f1b33; }
     .media-grid { display: flex; flex-wrap: wrap; gap: 12px; }
     .media-item { flex: 1 1 280px; }
     .media-item img { width: 100%; border-radius: 8px; border: 1px solid #e5e7eb; max-height: 200px; object-fit: cover; }
