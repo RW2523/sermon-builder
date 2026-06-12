@@ -164,18 +164,21 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
     const file = e.target.files?.[0]
     if (!file) return
     if (!file.type.startsWith('audio/')) { toast.error('Please upload an audio file'); return }
+    if (file.size > 20 * 1024 * 1024) { toast.error('Audio file too large (max 20MB)'); return }
     setUploadingAudio(true)
     const { data: { user } } = await supabase.auth.getUser()
     const path = `${user?.id}/${sermon.id}/${uniqueStorageName(file.name)}`
     const { error: uploadError } = await supabase.storage.from('sermon-audio').upload(path, file)
     if (uploadError) { toast.error(uploadError.message); setUploadingAudio(false); return }
     toast.info('Transcribing audio with Gemini…')
-    const formData = new FormData()
-    formData.append('audio', file)
-    formData.append('sermonId', sermon.id)
-    formData.append('storagePath', path)
     try {
-      const res = await fetch('/api/transcribe', { method: 'POST', body: formData })
+      // Audio is already in storage — send only the path so the request stays
+      // under Vercel's body size limit regardless of recording length
+      const res = await fetch('/api/transcribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sermonId: sermon.id, storagePath: path, mimeType: file.type }),
+      })
       const json = await res.json()
       if (!res.ok) { toast.error(json.error ?? 'Transcription failed'); return }
       onInputsChange([...inputs, json.input])
@@ -202,6 +205,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
       toast.error('Supported formats: PDF, Word (.docx), plain text')
       return
     }
+    if (file.size > 4 * 1024 * 1024) { toast.error('Document too large (max 4MB)'); return }
     setUploadingDoc(true)
     toast.info('Extracting text from document…')
     const formData = new FormData()

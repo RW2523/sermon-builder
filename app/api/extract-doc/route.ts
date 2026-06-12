@@ -5,7 +5,8 @@ import { userOwnsSermon, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
 
 export const maxDuration = 60
 
-const MAX_DOC_BYTES = 15 * 1024 * 1024
+// Vercel serverless functions reject request bodies over ~4.5MB
+const MAX_DOC_BYTES = 4 * 1024 * 1024
 
 const SUPPORTED_MIME: Record<string, string> = {
   'application/pdf': 'application/pdf',
@@ -28,7 +29,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Missing file or sermonId' }, { status: 400 })
   }
   if (file.size > MAX_DOC_BYTES) {
-    return NextResponse.json({ error: 'Document too large (max 15MB)' }, { status: 413 })
+    return NextResponse.json({ error: 'Document too large (max 4MB)' }, { status: 413 })
   }
   if (!(await userOwnsSermon(supabase, sermonId, user.id))) {
     return NextResponse.json({ error: 'Sermon not found' }, { status: 404 })

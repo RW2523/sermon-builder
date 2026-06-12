@@ -44,4 +44,6 @@ deploy_production:
     - npm ci --cache .npm --prefer-offline
     - npx vercel pull --yes --environment=production --token=$VERCEL_TOKEN
     - npx vercel build --prod --token=$VERCEL_TOKEN
-    - npx vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN
+    - DEPLOY_URL=$(npx vercel deploy --prebuilt --prod --token=$VERCEL_TOKEN)
+    - echo "Deployed to $DEPLOY_URL"
+    - 'curl -sf "$DEPLOY_URL/api/health" || (echo "Health check failed — check env vars in Vercel" && exit 1)'

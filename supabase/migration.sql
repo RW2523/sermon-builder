@@ -209,26 +209,35 @@ create trigger sermon_drafts_updated_at
   for each row execute procedure update_updated_at_column();
 
 -- ---------------------------------------------------------------
--- Storage buckets — create via Supabase Dashboard or these notes
+-- Storage buckets + policies (run as-is in the Supabase SQL editor)
 -- ---------------------------------------------------------------
--- Bucket: sermon-audio  (private)
--- Bucket: sermon-media  (private)
--- Bucket: sermon-exports (private, signed URLs)
--- Run in Supabase SQL editor after creating buckets via Dashboard:
---
--- insert into storage.buckets (id, name, public) values
---   ('sermon-audio', 'sermon-audio', false),
---   ('sermon-media', 'sermon-media', false),
---   ('sermon-exports', 'sermon-exports', false)
--- on conflict do nothing;
---
--- Storage RLS policies (add via Dashboard or SQL):
--- Allow authenticated users to upload to their folder (user_id prefix):
--- create policy "Users can upload own audio" on storage.objects
---   for insert to authenticated
---   with check (bucket_id = 'sermon-audio' and auth.uid()::text = (storage.foldername(name))[1]);
---
--- (Repeat pattern for sermon-media and sermon-exports)
+-- sermon-audio:   private — clients upload their own recordings; the
+--                 transcribe API reads them server-side
+-- sermon-media:   PUBLIC — the app serves generated images via
+--                 getPublicUrl(), which only works on public buckets
+-- sermon-exports: private (reserved for signed-URL exports)
+
+insert into storage.buckets (id, name, public) values
+  ('sermon-audio', 'sermon-audio', false),
+  ('sermon-media', 'sermon-media', true),
+  ('sermon-exports', 'sermon-exports', false)
+on conflict (id) do update set public = excluded.public;
+
+-- Users may only touch files inside their own {user_id}/... folder
+drop policy if exists "Users can upload own audio" on storage.objects;
+create policy "Users can upload own audio" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'sermon-audio' and auth.uid()::text = (storage.foldername(name))[1]);
+
+drop policy if exists "Users can read own audio" on storage.objects;
+create policy "Users can read own audio" on storage.objects
+  for select to authenticated
+  using (bucket_id = 'sermon-audio' and auth.uid()::text = (storage.foldername(name))[1]);
+
+drop policy if exists "Users can delete own audio" on storage.objects;
+create policy "Users can delete own audio" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'sermon-audio' and auth.uid()::text = (storage.foldername(name))[1]);
 
 -- ---------------------------------------------------------------
 -- Migration v2 — run these ALTER statements in Supabase SQL editor

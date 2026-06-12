@@ -76,69 +76,84 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
   async function handlePolish() {
     if (!inputs.length) { toast.error('Add content in Stage 1 first'); return }
     setPolishing(true)
-    const res = await fetch('/api/polish', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sermonId: sermon.id,
-        inputs,
-        title: sermon.title,
-        scriptureRef: sermon.scripture_ref,
-        theme: sermon.theme,
-      }),
-    })
-    const json = await res.json()
-    setPolishing(false)
-    if (!res.ok) { toast.error(json.error ?? 'Polish failed'); return }
-    editor?.commands.setContent(json.draft.polished_html)
-    onDraftChange(json.draft)
-    onSermonChange({ ...sermon, status: 'polished' })
-    toast.success('Sermon polished by Gemini AI!')
+    try {
+      const res = await fetch('/api/polish', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sermonId: sermon.id,
+          inputs,
+          title: sermon.title,
+          scriptureRef: sermon.scripture_ref,
+          theme: sermon.theme,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Polish failed'); return }
+      editor?.commands.setContent(json.draft.polished_html)
+      onDraftChange(json.draft)
+      onSermonChange({ ...sermon, status: 'polished' })
+      toast.success('Sermon polished by Gemini AI!')
+    } catch {
+      toast.error('Polish failed — check your connection')
+    } finally {
+      setPolishing(false)
+    }
   }
 
   async function handleApplyTemplate() {
     const html = editor?.getHTML() ?? ''
     if (!html || html === '<p></p>') { toast.error('Polish your sermon first'); return }
     setApplying(true)
-    const res = await fetch('/api/template', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sermonId: sermon.id,
-        draftId: draft?.id,
-        currentHtml: html,
-        templateType: selectedTemplate,
-      }),
-    })
-    const json = await res.json()
-    setApplying(false)
-    if (!res.ok) { toast.error(json.error ?? 'Template conversion failed'); return }
-    editor?.commands.setContent(json.draft.polished_html)
-    onDraftChange(json.draft)
-    const tpl = TEMPLATES.find(t => t.value === selectedTemplate)
-    toast.success(`Converted to ${tpl?.label ?? selectedTemplate} format!`)
+    try {
+      const res = await fetch('/api/template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sermonId: sermon.id,
+          draftId: draft?.id,
+          currentHtml: html,
+          templateType: selectedTemplate,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Template conversion failed'); return }
+      editor?.commands.setContent(json.draft.polished_html)
+      onDraftChange(json.draft)
+      const tpl = TEMPLATES.find(t => t.value === selectedTemplate)
+      toast.success(`Converted to ${tpl?.label ?? selectedTemplate} format!`)
+    } catch {
+      toast.error('Template conversion failed — check your connection')
+    } finally {
+      setApplying(false)
+    }
   }
 
   async function handleGetSuggestions() {
     const html = editor?.getHTML() ?? ''
     if (!html || html === '<p></p>') { toast.error('Polish your sermon first to get suggestions'); return }
     setLoadingSuggestions(true)
-    const res = await fetch('/api/suggestions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sermonHtml: html,
-        title: sermon.title,
-        scriptureRef: sermon.scripture_ref,
-        theme: sermon.theme,
-      }),
-    })
-    const json = await res.json()
-    setLoadingSuggestions(false)
-    if (!res.ok) { toast.error(json.error ?? 'Failed to get suggestions'); return }
-    setSuggestions(json.suggestions)
-    setShowSuggestions(true)
-    toast.success('AI suggestions generated!')
+    try {
+      const res = await fetch('/api/suggestions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sermonHtml: html,
+          title: sermon.title,
+          scriptureRef: sermon.scripture_ref,
+          theme: sermon.theme,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Failed to get suggestions'); return }
+      setSuggestions(json.suggestions)
+      setShowSuggestions(true)
+      toast.success('AI suggestions generated!')
+    } catch {
+      toast.error('Failed to get suggestions — check your connection')
+    } finally {
+      setLoadingSuggestions(false)
+    }
   }
 
   function copySuggestion(text: string, key: string) {

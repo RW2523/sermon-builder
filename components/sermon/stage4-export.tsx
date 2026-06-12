@@ -95,24 +95,29 @@ export default function Stage4Export({
   async function handleGenerateSpeakerNotes() {
     if (!draft) { toast.error('Polish your sermon first in Stage 2'); return }
     setGeneratingNotes(true)
-    const res = await fetch('/api/speaker-notes', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        draftId: draft.id,
-        sermonHtml: draft.polished_html,
-        title: sermon.title,
-        scriptureRef: sermon.scripture_ref,
-        theme: sermon.theme,
-      }),
-    })
-    const json = await res.json()
-    setGeneratingNotes(false)
-    if (!res.ok) { toast.error(json.error ?? 'Failed to generate speaker notes'); return }
-    setEditableNotes(json.notes)
-    onDraftChange(json.draft)
-    setShowNotes(true)
-    toast.success('Speaker notes generated!')
+    try {
+      const res = await fetch('/api/speaker-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          draftId: draft.id,
+          sermonHtml: draft.polished_html,
+          title: sermon.title,
+          scriptureRef: sermon.scripture_ref,
+          theme: sermon.theme,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Failed to generate speaker notes'); return }
+      setEditableNotes(json.notes)
+      onDraftChange(json.draft)
+      setShowNotes(true)
+      toast.success('Speaker notes generated!')
+    } catch {
+      toast.error('Failed to generate speaker notes — check your connection')
+    } finally {
+      setGeneratingNotes(false)
+    }
   }
 
   async function saveSpeakerNotes() {
@@ -185,23 +190,28 @@ export default function Stage4Export({
 
   async function handleGenerateOutreach() {
     setGeneratingOutreach(true)
-    const res = await fetch('/api/outreach', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sermonId: sermon.id,
-        sermonHtml: draft?.polished_html ?? '',
-        title: sermon.title,
-        scriptureRef: sermon.scripture_ref,
-        theme: sermon.theme,
-      }),
-    })
-    const json = await res.json()
-    setGeneratingOutreach(false)
-    if (!res.ok) { toast.error(json.error); return }
-    onOutreachChange(json.outreach)
-    setSocialData(json.social)
-    toast.success('Outreach content generated!')
+    try {
+      const res = await fetch('/api/outreach', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sermonId: sermon.id,
+          sermonHtml: draft?.polished_html ?? '',
+          title: sermon.title,
+          scriptureRef: sermon.scripture_ref,
+          theme: sermon.theme,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Failed to generate outreach content'); return }
+      onOutreachChange(json.outreach)
+      setSocialData(json.social)
+      toast.success('Outreach content generated!')
+    } catch {
+      toast.error('Failed to generate outreach content — check your connection')
+    } finally {
+      setGeneratingOutreach(false)
+    }
   }
 
   async function handlePublish() {
