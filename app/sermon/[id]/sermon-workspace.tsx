@@ -52,56 +52,70 @@ export default function SermonWorkspace({ sermon: initialSermon, inputs: initial
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-950 via-purple-950 to-slate-900 flex flex-col">
+    <div className="app-shell flex flex-col text-white">
       {/* Header */}
-      <header className="border-b border-white/10 bg-black/20 backdrop-blur sticky top-0 z-20">
+      <header className="border-b border-white/[0.07] bg-black/20 backdrop-blur-md sticky top-0 z-20">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           <Link href="/dashboard">
             <Button variant="ghost" size="icon" aria-label="Back to dashboard" className="h-8 w-8 text-white/60 hover:text-white hover:bg-white/10">
               <ArrowLeft className="h-4 w-4" />
             </Button>
           </Link>
-          <div className="rounded-full bg-purple-600 p-1">
-            <BookOpen className="h-4 w-4 text-white" />
+          <div className="rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600 p-1.5 shadow shadow-purple-900/40">
+            <BookOpen className="h-3.5 w-3.5 text-white" />
           </div>
-          <h1 className="text-white font-semibold text-lg truncate flex-1">{sermon.title}</h1>
+          <h1 className="font-display text-white font-semibold text-lg truncate flex-1">{sermon.title}</h1>
+          <span className="hidden sm:block text-xs text-white/35 font-mono">Stage {activeStage} of 4</span>
         </div>
       </header>
 
       {/* Stepper */}
-      <div className="border-b border-white/10 bg-black/10">
-        <div className="max-w-5xl mx-auto px-4 py-3">
-          <div className="flex items-center gap-1 overflow-x-auto pb-1">
+      <div className="border-b border-white/[0.07] bg-black/10">
+        <div className="max-w-5xl mx-auto px-4 py-4">
+          <div className="flex items-center overflow-x-auto pb-1">
             {STEPS.map((step, i) => {
-              const completed = sermon.current_stage > step.num || (activeStage > step.num)
+              const completed = activeStage > step.num
               const active = activeStage === step.num
               return (
-                <div key={step.num} className="flex items-center shrink-0">
+                <div key={step.num} className={cn('flex items-center', i < STEPS.length - 1 && 'flex-1')}>
                   <button
                     onClick={() => goToStage(step.num)}
                     className={cn(
-                      'flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all',
-                      active
-                        ? 'bg-purple-600 text-white'
-                        : completed
-                        ? 'bg-white/10 text-white/70 hover:bg-white/15'
-                        : 'text-white/40 hover:text-white/60'
+                      'flex items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-all shrink-0 outline-none focus-visible:ring-2 focus-visible:ring-purple-400/60',
+                      active ? 'bg-white/[0.07]' : 'hover:bg-white/[0.05]'
                     )}
                   >
-                    {completed && !active ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-400 shrink-0" />
-                    ) : (
-                      <span className={cn(
-                        'h-5 w-5 rounded-full border-2 flex items-center justify-center text-xs shrink-0',
-                        active ? 'border-white bg-white text-purple-700' : 'border-white/30 text-white/40'
-                      )}>
-                        {step.num}
+                    <span
+                      className={cn(
+                        'h-7 w-7 rounded-full flex items-center justify-center text-xs font-semibold shrink-0 transition-all',
+                        active
+                          ? 'bg-gradient-to-br from-purple-500 to-indigo-600 text-white shadow-lg shadow-purple-900/50 ring-2 ring-purple-400/40'
+                          : completed
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                          : 'border border-white/20 text-white/40'
+                      )}
+                    >
+                      {completed ? <CheckCircle2 className="h-4 w-4" /> : step.num}
+                    </span>
+                    <span className="hidden md:block text-left leading-tight">
+                      <span className={cn('block font-medium', active ? 'text-white' : completed ? 'text-white/70' : 'text-white/40')}>
+                        {step.label}
                       </span>
-                    )}
-                    <span className="hidden sm:block">{step.label}</span>
+                      <span className="block text-[11px] text-white/30">{step.desc}</span>
+                    </span>
+                    <span className={cn('md:hidden font-medium', active ? 'text-white' : 'text-white/40')}>
+                      {active && step.label}
+                    </span>
                   </button>
                   {i < STEPS.length - 1 && (
-                    <div className={cn('h-px w-6 mx-1', completed ? 'bg-white/30' : 'bg-white/10')} />
+                    <div className="flex-1 h-0.5 mx-2 rounded-full bg-white/10 overflow-hidden min-w-6">
+                      <div
+                        className={cn(
+                          'h-full rounded-full bg-gradient-to-r from-purple-400 to-indigo-400 transition-all duration-500',
+                          completed ? 'w-full' : 'w-0'
+                        )}
+                      />
+                    </div>
                   )}
                 </div>
               )

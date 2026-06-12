@@ -7,9 +7,11 @@ import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { BookOpen, Loader2 } from 'lucide-react'
+import { BookOpen, Loader2, Mail, Lock, User, Church } from 'lucide-react'
 import { toast } from 'sonner'
+
+const inputClass =
+  'h-11 pl-10 border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus-visible:ring-purple-400/50 focus-visible:border-purple-400/50'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -51,87 +53,94 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900 p-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="flex flex-col items-center gap-2 text-white">
-          <div className="rounded-full bg-white/10 p-3">
-            <BookOpen className="h-8 w-8 text-white" />
+    <div className="app-shell flex items-center justify-center p-4 text-white">
+      <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <Link href="/" className="flex flex-col items-center gap-3 group">
+          <div className="rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 p-3.5 shadow-xl shadow-purple-900/50 group-hover:scale-105 transition-transform">
+            <BookOpen className="h-7 w-7" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Sermon Builder</h1>
-          <p className="text-white/70 text-sm">Create your pastor account</p>
-        </div>
-        <Card className="border-white/10 bg-white/5 text-white backdrop-blur">
-          <CardHeader>
-            <CardTitle className="text-xl">Create your account</CardTitle>
-            <CardDescription className="text-white/60">Start building powerful sermons with AI</CardDescription>
-          </CardHeader>
-          <form onSubmit={handleSignup}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="fullName" className="text-white/80">Full Name</Label>
-                <Input
-                  id="fullName"
-                  placeholder="Pastor John Smith"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  required
-                  className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus-visible:ring-purple-400"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="church" className="text-white/80">Church Name</Label>
-                <Input
-                  id="church"
-                  placeholder="Grace Community Church"
-                  value={church}
-                  onChange={(e) => setChurch(e.target.value)}
-                  className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus-visible:ring-purple-400"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-white/80">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="pastor@church.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus-visible:ring-purple-400"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-white/80">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={8}
-                  className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus-visible:ring-purple-400"
-                />
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-col gap-3">
-              <Button
-                type="submit"
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white"
-                disabled={loading}
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Create Account
-              </Button>
-              <p className="text-white/60 text-sm">
-                Already have an account?{' '}
-                <Link href="/login" className="text-purple-300 hover:text-purple-200 underline">
-                  Sign in
-                </Link>
-              </p>
-            </CardFooter>
-          </form>
-        </Card>
+          <div className="text-center">
+            <h1 className="font-display text-3xl font-semibold tracking-tight">Create your account</h1>
+            <p className="text-white/50 text-sm mt-1">Start building powerful sermons with AI.</p>
+          </div>
+        </Link>
+
+        <form onSubmit={handleSignup} className="glass rounded-2xl p-6 sm:p-8 space-y-4 shadow-2xl shadow-black/30">
+          <div className="space-y-2">
+            <Label htmlFor="fullName" className="text-white/70">Full name</Label>
+            <div className="relative">
+              <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+              <Input
+                id="fullName"
+                placeholder="Pastor John Smith"
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                required
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="church" className="text-white/70">Church name <span className="text-white/30">(optional)</span></Label>
+            <div className="relative">
+              <Church className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+              <Input
+                id="church"
+                placeholder="Grace Community Church"
+                value={church}
+                onChange={(e) => setChurch(e.target.value)}
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="email" className="text-white/70">Email</Label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+              <Input
+                id="email"
+                type="email"
+                placeholder="pastor@church.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                className={inputClass}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="password" className="text-white/70">Password</Label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
+              <Input
+                id="password"
+                type="password"
+                placeholder="At least 8 characters"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={8}
+                className={inputClass}
+              />
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full h-11 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium shadow-lg shadow-purple-900/40 mt-2"
+            disabled={loading}
+          >
+            {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+            Create account
+          </Button>
+
+          <p className="text-center text-white/50 text-sm pt-1">
+            Already have an account?{' '}
+            <Link href="/login" className="text-purple-300 hover:text-purple-200 font-medium">
+              Sign in
+            </Link>
+          </p>
+        </form>
       </div>
     </div>
   )

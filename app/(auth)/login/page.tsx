@@ -1,24 +1,25 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef, Suspense } from 'react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { BookOpen, Loader2, Zap } from 'lucide-react'
+import { BookOpen, Loader2, Zap, Mail, Lock } from 'lucide-react'
 import { toast } from 'sonner'
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [demoLoading, setDemoLoading] = useState(false)
+  const autoDemoFired = useRef(false)
 
   async function handleLogin(e: React.FormEvent) {
     e.preventDefault()
@@ -35,67 +36,72 @@ export default function LoginPage() {
 
   async function handleDemoLogin() {
     setDemoLoading(true)
-    toast.info('Setting up demo account…')
-
-    const res = await fetch('/api/demo-login', { method: 'POST' })
-    const json = await res.json()
-
-    if (!res.ok) {
+    toast.info('Setting up the demo…')
+    try {
+      const res = await fetch('/api/demo-login', { method: 'POST' })
+      const json = await res.json()
+      if (!res.ok) {
+        toast.error(json.error ?? 'Demo login failed')
+        return
+      }
+      await supabase.auth.refreshSession()
+      toast.success('Welcome to the demo!')
+      router.push('/dashboard')
+      router.refresh()
+    } catch {
+      toast.error('Demo login failed — check your connection')
+    } finally {
       setDemoLoading(false)
-      toast.error(json.error ?? 'Demo login failed')
-      return
     }
-
-    // Refresh auth state then navigate
-    await supabase.auth.refreshSession()
-    toast.success('Welcome to the demo! 🎉')
-    router.push('/dashboard')
-    router.refresh()
   }
 
+  // Landing page "Try the live demo" CTA lands here with ?demo=1
+  useEffect(() => {
+    if (searchParams.get('demo') === '1' && !autoDemoFired.current) {
+      autoDemoFired.current = true
+      handleDemoLogin()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams])
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-950 via-purple-900 to-slate-900 p-4">
-      <div className="w-full max-w-md space-y-6">
+    <div className="app-shell flex items-center justify-center p-4 text-white">
+      <div className="w-full max-w-md space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
         {/* Logo + title */}
-        <div className="flex flex-col items-center gap-2 text-white">
-          <div className="rounded-full bg-white/10 p-3">
-            <BookOpen className="h-8 w-8 text-white" />
+        <Link href="/" className="flex flex-col items-center gap-3 group">
+          <div className="rounded-2xl bg-gradient-to-br from-purple-500 to-indigo-600 p-3.5 shadow-xl shadow-purple-900/50 group-hover:scale-105 transition-transform">
+            <BookOpen className="h-7 w-7" />
           </div>
-          <h1 className="text-3xl font-bold tracking-tight">Sermon Builder</h1>
-          <p className="text-white/70 text-sm">AI-powered sermon creation platform</p>
-        </div>
+          <div className="text-center">
+            <h1 className="font-display text-3xl font-semibold tracking-tight">Sermon Builder</h1>
+            <p className="text-white/50 text-sm mt-1">Welcome back — let&apos;s build something worth preaching.</p>
+          </div>
+        </Link>
 
-        <Card className="border-white/10 bg-white/5 text-white backdrop-blur">
-          <CardHeader>
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription className="text-white/60">Sign in to your account</CardDescription>
-          </CardHeader>
+        <div className="glass rounded-2xl p-6 sm:p-8 space-y-5 shadow-2xl shadow-black/30">
+          <Button
+            type="button"
+            className="w-full h-11 gap-2 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-amber-950 font-semibold shadow-lg shadow-amber-500/20 transition-all hover:shadow-amber-500/35"
+            onClick={handleDemoLogin}
+            disabled={demoLoading || loading}
+          >
+            {demoLoading
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Zap className="h-4 w-4 fill-amber-950" />}
+            {demoLoading ? 'Preparing your demo…' : 'Try the demo — no account needed'}
+          </Button>
 
-          <CardContent className="space-y-4 pb-2">
-            {/* Demo login — prominent at the top */}
-            <Button
-              type="button"
-              className="w-full gap-2 bg-amber-500 hover:bg-amber-400 text-black font-semibold shadow-lg shadow-amber-500/20"
-              onClick={handleDemoLogin}
-              disabled={demoLoading || loading}
-            >
-              {demoLoading
-                ? <Loader2 className="h-4 w-4 animate-spin" />
-                : <Zap className="h-4 w-4 fill-black" />}
-              {demoLoading ? 'Loading demo…' : 'Try Demo — no account needed'}
-            </Button>
+          <div className="flex items-center gap-3">
+            <Separator className="flex-1 bg-white/10" />
+            <span className="text-white/30 text-xs whitespace-nowrap">or sign in with email</span>
+            <Separator className="flex-1 bg-white/10" />
+          </div>
 
-            <div className="flex items-center gap-3">
-              <Separator className="flex-1 bg-white/10" />
-              <span className="text-white/30 text-xs">or sign in with email</span>
-              <Separator className="flex-1 bg-white/10" />
-            </div>
-          </CardContent>
-
-          <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4 pt-0">
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-white/80">Email</Label>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-white/70">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
                 <Input
                   id="email"
                   type="email"
@@ -103,11 +109,14 @@ export default function LoginPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus-visible:ring-purple-400"
+                  className="h-11 pl-10 border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus-visible:ring-purple-400/50 focus-visible:border-purple-400/50"
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="password" className="text-white/80">Password</Label>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-white/70">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-white/30" />
                 <Input
                   id="password"
                   type="password"
@@ -115,34 +124,40 @@ export default function LoginPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="border-white/20 bg-white/10 text-white placeholder:text-white/40 focus-visible:ring-purple-400"
+                  className="h-11 pl-10 border-white/15 bg-white/[0.06] text-white placeholder:text-white/30 focus-visible:ring-purple-400/50 focus-visible:border-purple-400/50"
                 />
               </div>
-            </CardContent>
-
-            <CardFooter className="flex flex-col gap-3">
-              <Button
-                type="submit"
-                className="w-full bg-purple-600 hover:bg-purple-500 text-white"
-                disabled={loading || demoLoading}
-              >
-                {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-                Sign In
-              </Button>
-              <p className="text-white/60 text-sm">
-                Don&apos;t have an account?{' '}
-                <Link href="/signup" className="text-purple-300 hover:text-purple-200 underline">
-                  Sign up
-                </Link>
-              </p>
-            </CardFooter>
+            </div>
+            <Button
+              type="submit"
+              className="w-full h-11 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium shadow-lg shadow-purple-900/40"
+              disabled={loading || demoLoading}
+            >
+              {loading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Sign in
+            </Button>
           </form>
-        </Card>
 
-        <p className="text-center text-white/30 text-xs px-4">
-          The demo account is shared — do not enter real sermon content in demo mode.
+          <p className="text-center text-white/50 text-sm">
+            Don&apos;t have an account?{' '}
+            <Link href="/signup" className="text-purple-300 hover:text-purple-200 font-medium">
+              Create one free
+            </Link>
+          </p>
+        </div>
+
+        <p className="text-center text-white/25 text-xs px-4">
+          The demo account is shared — don&apos;t enter real sermon content in demo mode.
         </p>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   )
 }
