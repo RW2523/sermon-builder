@@ -95,7 +95,7 @@ export async function generatePPT(
 ): Promise<Blob> {
   const pptx = new PptxGenJS()
   pptx.layout = 'LAYOUT_WIDE'
-  pptx.author = 'Sermon Builder Studio'
+  pptx.author = 'SabAi Sermon'
   pptx.title = sermon.title
 
   const blocks = promoteHeadings(parseSermonHtml(draft.polished_html ?? ''))

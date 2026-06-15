@@ -13,11 +13,11 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   title: {
-    default: 'Sermon Builder Studio',
-    template: '%s · Sermon Builder Studio',
+    default: 'SabAi Sermon',
+    template: '%s · SabAi Sermon',
   },
   description:
-    'AI-powered sermon creation for pastors — collect ideas, polish with AI, generate visuals, and publish everywhere.',
+    'A complete sermon studio for pastors — collect ideas, polish your message, generate visuals, and publish everywhere.',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

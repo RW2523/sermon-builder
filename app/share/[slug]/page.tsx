@@ -57,7 +57,7 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
             <div className="rounded-full bg-gradient-to-br from-amber-400 to-amber-600 p-1.5">
               <BookOpen className="h-4 w-4 text-slate-900" />
             </div>
-            <span className="font-semibold">Sermon Builder</span>
+            <span className="font-semibold">SabAi Sermon</span>
           </div>
           <Badge className="bg-green-600 text-white text-xs gap-1">
             <Share2 className="h-3 w-3" /> Public Sermon
@@ -163,7 +163,7 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
 
         {/* Footer */}
         <div className="text-center text-white/30 text-sm pt-4 border-t border-white/10">
-          <p>Created with <Link href="/" className="text-amber-400 hover:text-amber-300">Sermon Builder</Link> — AI-powered sermon platform for pastors</p>
+          <p>Created with <Link href="/" className="text-amber-400 hover:text-amber-300">SabAi Sermon</Link> — a sermon platform for pastors</p>
         </div>
       </main>
     </div>

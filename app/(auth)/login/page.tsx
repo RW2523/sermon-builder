@@ -73,7 +73,7 @@ function LoginForm() {
             <BookOpen className="h-7 w-7 text-slate-900" />
           </div>
           <div className="text-center">
-            <h1 className="font-display text-3xl font-semibold tracking-tight">Sermon Builder</h1>
+            <h1 className="font-display text-3xl font-semibold tracking-tight">SabAi Sermon</h1>
             <p className="text-white/50 text-sm mt-1">Welcome back — let&apos;s build something worth preaching.</p>
           </div>
         </Link>

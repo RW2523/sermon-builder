@@ -127,7 +127,7 @@ export async function generatePDF(
   doc.setTextColor(150, 160, 175)
   doc.text(dateLabel, PAGE_W / 2, 262, { align: 'center' })
   doc.setFontSize(8)
-  doc.text('Prepared with Sermon Builder Studio', PAGE_W / 2, 270, { align: 'center' })
+  doc.text('Prepared with SabAi Sermon', PAGE_W / 2, 270, { align: 'center' })
 
   // ── Content pages ───────────────────────────────────────────
   let y = TOP_Y

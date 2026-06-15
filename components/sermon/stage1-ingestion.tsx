@@ -170,7 +170,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
     const path = `${user?.id}/${sermon.id}/${uniqueStorageName(file.name)}`
     const { error: uploadError } = await supabase.storage.from('sermon-audio').upload(path, file)
     if (uploadError) { toast.error(uploadError.message); setUploadingAudio(false); return }
-    toast.info('Transcribing audio with Gemini…')
+    toast.info('Transcribing audio…')
     try {
       // Audio is already in storage — send only the path so the request stays
       // under Vercel's body size limit regardless of recording length
@@ -376,13 +376,13 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
 
             {/* Audio Upload */}
             <TabsContent value="audio" className="p-4 mt-0 space-y-3">
-              <p className="text-white/40 text-xs">Upload a sermon recording — Gemini will transcribe it automatically.</p>
+              <p className="text-white/40 text-xs">Upload a sermon recording — it will be transcribed automatically.</p>
               <label className={cn(
                 'flex flex-col items-center gap-3 border-2 border-dashed border-white/20 rounded-lg p-8 cursor-pointer transition-all',
                 uploadingAudio ? 'border-amber-400/50 bg-amber-900/10' : 'hover:border-amber-400/50 hover:bg-white/5'
               )}>
                 {uploadingAudio
-                  ? <><Loader2 className="h-10 w-10 text-amber-400 animate-spin" /><span className="text-white/60 text-sm font-medium">Transcribing with Gemini AI…</span></>
+                  ? <><Loader2 className="h-10 w-10 text-amber-400 animate-spin" /><span className="text-white/60 text-sm font-medium">Transcribing…</span></>
                   : <><FileAudio className="h-10 w-10 text-white/25" /><span className="text-white/60 text-sm font-medium">Drop or click to upload audio</span><span className="text-white/30 text-xs">MP3, WAV, M4A, OGG, WebM supported</span></>
                 }
                 <input type="file" accept="audio/*" className="hidden" onChange={handleAudioUpload} disabled={uploadingAudio} />
@@ -505,7 +505,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
       {/* Next step */}
       <div className="flex items-center justify-between">
         <p className="text-white/30 text-xs">
-          {inputs.length === 0 ? 'Add at least one content source to continue' : `${inputs.length} source${inputs.length > 1 ? 's' : ''} ready for AI polishing`}
+          {inputs.length === 0 ? 'Add at least one content source to continue' : `${inputs.length} source${inputs.length > 1 ? 's' : ''} ready for polishing`}
         </p>
         <Button
           onClick={onNext}

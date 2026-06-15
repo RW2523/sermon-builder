@@ -263,7 +263,7 @@ export default function Stage4Export({
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-white/40 text-sm">
-            Generate AI speaker notes with delivery tips, timing, transitions, and altar call guidance. Notes are embedded into your PPT export.
+            Generate speaker notes with delivery tips, timing, transitions, and altar call guidance. Notes are embedded into your PPT export.
           </p>
           <Button
             className="w-full bg-amber-700 hover:bg-amber-600 gap-2"
@@ -271,7 +271,7 @@ export default function Stage4Export({
             disabled={generatingNotes || !draft}
           >
             {generatingNotes ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-            {generatingNotes ? 'Generating speaker notes…' : 'Generate AI Speaker Notes'}
+            {generatingNotes ? 'Generating speaker notes…' : 'Generate Speaker Notes'}
           </Button>
 
           {showNotes && (editableNotes || draft?.speaker_notes) && (

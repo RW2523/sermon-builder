@@ -32,7 +32,7 @@ const STATUS_STYLE: Record<string, { label: string; class: string }> = {
 
 const STAGE_LABELS: Record<number, string> = {
   1: 'Collecting content',
-  2: 'AI polish & edit',
+  2: 'Polish & edit',
   3: 'Adding visuals',
   4: 'Export & publish',
 }
@@ -108,7 +108,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
             <div className="rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 p-2 shadow-lg shadow-amber-950/40">
               <BookOpen className="h-4.5 w-4.5 text-slate-900" />
             </div>
-            <span className="font-display text-lg font-semibold tracking-tight">Sermon Builder</span>
+            <span className="font-display text-lg font-semibold tracking-tight">SabAi Sermon</span>
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2.5">
@@ -174,7 +174,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
             <div>
               <p className="font-display text-xl font-semibold">Your first sermon starts here</p>
               <p className="text-white/45 text-sm mt-1 max-w-sm mx-auto">
-                Bring your notes, voice memos, or a passage of scripture — the AI will help with the rest.
+                Bring your notes, voice memos, or a passage of scripture — we'll help with the rest.
               </p>
             </div>
             <Button

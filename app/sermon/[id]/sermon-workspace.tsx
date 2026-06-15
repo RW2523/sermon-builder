@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
 
 const STEPS = [
   { num: 1, label: 'Content Ingestion', desc: 'Notes, voice & documents' },
-  { num: 2, label: 'AI Polish & Edit', desc: 'Refine & structure' },
+  { num: 2, label: 'Polish & Edit', desc: 'Refine & structure' },
   { num: 3, label: 'Multimedia', desc: 'Visuals & imagery' },
   { num: 4, label: 'Presentation & Publish', desc: 'Export & distribute' },
 ]

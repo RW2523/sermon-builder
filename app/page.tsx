@@ -18,8 +18,8 @@ const STAGES = [
   },
   {
     icon: Sparkles,
-    title: 'Polish with AI',
-    desc: 'Gemini shapes your raw material into a structured sermon, restyled into any of 10 formats you preach in.',
+    title: 'Polish your message',
+    desc: 'Your raw material is shaped into a structured sermon, restyled into any of 10 formats you preach in.',
     color: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
   },
   {
@@ -57,7 +57,7 @@ export default async function Home() {
           <div className="rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 p-2 shadow-lg shadow-amber-950/40">
             <BookOpen className="h-5 w-5 text-slate-900" />
           </div>
-          <span className="font-display text-lg font-semibold tracking-tight">Sermon Builder</span>
+          <span className="font-display text-lg font-semibold tracking-tight">SabAi Sermon</span>
         </div>
         <div className="flex items-center gap-2">
           <Link href="/login">
@@ -73,7 +73,7 @@ export default async function Home() {
       <section className="relative z-10 max-w-4xl mx-auto px-6 pt-20 pb-16 text-center">
         <div className="inline-flex items-center gap-2 rounded-full glass px-4 py-1.5 text-sm text-amber-200 mb-8 animate-in fade-in slide-in-from-bottom-2 duration-700">
           <Zap className="h-3.5 w-3.5 text-amber-300" />
-          AI-powered sermon studio for pastors
+          A complete sermon studio for pastors
         </div>
         <h1 className="font-display text-5xl sm:text-6xl md:text-7xl font-semibold leading-[1.05] tracking-tight animate-in fade-in slide-in-from-bottom-3 duration-700">
           From scattered notes
@@ -141,9 +141,9 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-white/35">
           <div className="flex items-center gap-2">
             <BookOpen className="h-4 w-4" />
-            <span>Sermon Builder Studio</span>
+            <span>SabAi Sermon</span>
           </div>
-          <span>Built for pastors. Powered by AI.</span>
+          <span>Built for pastors.</span>
         </div>
       </footer>
     </div>

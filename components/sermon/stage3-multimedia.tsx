@@ -179,7 +179,7 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
       <Card className="border-white/10 bg-white/5 text-white">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-blue-400" /> Generate AI Visuals
+            <Sparkles className="h-4 w-4 text-blue-400" /> Generate Visuals
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

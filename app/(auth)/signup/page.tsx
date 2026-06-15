@@ -47,7 +47,7 @@ export default function SignupPage() {
         toast.warning('Account created, but saving your church name failed — you can update it later.')
       }
     }
-    toast.success('Account created! Welcome to Sermon Builder.')
+    toast.success('Account created! Welcome to SabAi Sermon.')
     router.push('/dashboard')
     router.refresh()
   }
@@ -61,7 +61,7 @@ export default function SignupPage() {
           </div>
           <div className="text-center">
             <h1 className="font-display text-3xl font-semibold tracking-tight">Create your account</h1>
-            <p className="text-white/50 text-sm mt-1">Start building powerful sermons with AI.</p>
+            <p className="text-white/50 text-sm mt-1">Start building powerful sermons.</p>
           </div>
         </Link>
 

@@ -64,7 +64,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Placeholder.configure({ placeholder: 'Your polished sermon will appear here. Click "Polish with AI" to generate it from your Stage 1 content.' }),
+      Placeholder.configure({ placeholder: 'Your polished sermon will appear here. Click "Polish" to generate it from your Stage 1 content.' }),
       Link.configure({ openOnClick: false }),
     ],
     content: draft?.polished_html ?? '',
@@ -93,7 +93,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
       editor?.commands.setContent(json.draft.polished_html)
       onDraftChange(json.draft)
       onSermonChange({ ...sermon, status: 'polished' })
-      toast.success('Sermon polished by Gemini AI!')
+      toast.success('Sermon polished!')
     } catch {
       toast.error('Polish failed — check your connection')
     } finally {
@@ -148,7 +148,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
       if (!res.ok) { toast.error(json.error ?? 'Failed to get suggestions'); return }
       setSuggestions(json.suggestions)
       setShowSuggestions(true)
-      toast.success('AI suggestions generated!')
+      toast.success('Suggestions generated!')
     } catch {
       toast.error('Failed to get suggestions — check your connection')
     } finally {
@@ -185,16 +185,16 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
     <div className="space-y-6">
       {/* Top controls */}
       <div className="grid lg:grid-cols-2 gap-4">
-        {/* AI Polish */}
+        {/* Polish */}
         <Card className="border-white/10 bg-white/5 text-white">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-yellow-400" /> Step 1 — AI Polish
+              <Sparkles className="h-4 w-4 text-yellow-400" /> Step 1 — Polish
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-white/50 text-sm leading-relaxed">
-              Gemini AI transforms all your Stage 1 content — notes, dictation, audio transcriptions, documents, and scripture — into one powerful, structured sermon draft.
+              All your Stage 1 content — notes, dictation, audio transcriptions, documents, and scripture — is transformed into one powerful, structured sermon draft.
             </p>
             <Button
               className="w-full bg-yellow-600 hover:bg-yellow-500 gap-2"
@@ -202,7 +202,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
               disabled={polishing || !inputs.length}
             >
               {polishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {polishing ? 'Polishing with Gemini…' : `Polish ${inputs.length} Source${inputs.length !== 1 ? 's' : ''}`}
+              {polishing ? 'Polishing…' : `Polish ${inputs.length} Source${inputs.length !== 1 ? 's' : ''}`}
             </Button>
             {!inputs.length && (
               <p className="text-white/30 text-xs text-center">← Go to Stage 1 to add content first</p>
@@ -276,12 +276,12 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
         </CardContent>
       </Card>
 
-      {/* AI Suggestions panel */}
+      {/* Suggestions panel */}
       <Card className="border-white/10 bg-white/5 text-white">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-              <Lightbulb className="h-4 w-4 text-amber-400" /> AI Suggestions & Improvements
+              <Lightbulb className="h-4 w-4 text-amber-400" /> Suggestions & Improvements
             </CardTitle>
             {suggestions && (
               <Button
@@ -297,7 +297,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
         </CardHeader>
         <CardContent className="space-y-3">
           <p className="text-white/40 text-sm">
-            Get AI-powered suggestions for stronger illustrations, better applications, scripture connections, and more.
+            Get suggestions for stronger illustrations, better applications, scripture connections, and more.
           </p>
           <Button
             className="w-full bg-amber-700 hover:bg-amber-600 gap-2"
@@ -305,7 +305,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
             disabled={loadingSuggestions || !draft}
           >
             {loadingSuggestions ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lightbulb className="h-4 w-4" />}
-            {loadingSuggestions ? 'Analyzing sermon…' : 'Get AI Suggestions'}
+            {loadingSuggestions ? 'Analyzing sermon…' : 'Get Suggestions'}
           </Button>
 
           {suggestions && showSuggestions && (
