@@ -1,24 +1,10 @@
 import jsPDF from 'jspdf'
 import type { Sermon, StructuredSermon, SermonMedia, ExportTemplateId } from '@/types'
 import { getTheme, withHash, contrastText } from '@/lib/sermon/templates'
+import { prepareImage } from '@/lib/exports/image'
 
 interface ExportOpts {
   templateId?: ExportTemplateId
-}
-
-async function urlToDataUrl(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url)
-    const blob = await res.blob()
-    return await new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.onerror = () => resolve(null)
-      reader.readAsDataURL(blob)
-    })
-  } catch {
-    return null
-  }
 }
 
 export async function generatePDF(
@@ -147,25 +133,22 @@ export async function generatePDF(
   // ── Scripture ──
   if (structured.scripture) scriptureBlock(structured.scripture)
 
-  // ── Preload media ──
-  const imgData: { data: string; w: number; h: number; caption: string | null }[] = []
-  for (const m of media) {
-    if (!m.public_url) continue
-    const data = await urlToDataUrl(m.public_url)
-    if (!data) continue
-    try {
-      const props = doc.getImageProperties(data)
-      imgData.push({ data, w: props.width, h: props.height, caption: m.caption })
-    } catch { /* skip undecodable */ }
-  }
+  // ── Preload + compress media (parallel) ──
+  const prepared = await Promise.all(
+    media.map(async (m) => {
+      if (!m.public_url) return null
+      const p = await prepareImage(m.public_url)
+      return p ? { data: p.dataUrl, w: p.w, h: p.h, caption: m.caption } : null
+    })
+  )
+  const imgData = prepared.filter(Boolean) as { data: string; w: number; h: number; caption: string | null }[]
 
   function placeImage(img: { data: string; w: number; h: number; caption: string | null }, widthMm: number) {
     const imgW = Math.min(widthMm, contentW)
     const imgH = (img.h / img.w) * imgW
     checkPage(imgH + (img.caption ? 8 : 4))
     const x = margin + (contentW - imgW) / 2
-    const fmt = img.data.includes('image/png') ? 'PNG' : 'JPEG'
-    doc.addImage(img.data, fmt, x, y, imgW, imgH)
+    doc.addImage(img.data, 'JPEG', x, y, imgW, imgH)
     y += imgH + 3
     if (img.caption) {
       doc.setFont('times', 'italic')

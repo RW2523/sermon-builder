@@ -86,6 +86,7 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
   const [highQuality, setHighQuality] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [autoGenerating, setAutoGenerating] = useState(false)
+  const [generatingSet, setGeneratingSet] = useState(false)
   const [regenerating, setRegenerating] = useState<GeneratingState>({})
   const [editingCaption, setEditingCaption] = useState<string | null>(null)
   const [captionText, setCaptionText] = useState('')
@@ -142,6 +143,26 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
     }
   }
 
+  async function generateVisualSet() {
+    if (!draft) { toast.error('Polish your sermon first in Stage 2'); return }
+    setGeneratingSet(true)
+    toast.info('Creating a full set of visuals — this takes up to a minute…')
+    try {
+      const res = await fetch('/api/image-set', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sermonId: sermon.id, count: 6, highQuality }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Visual set generation failed'); return }
+      onMediaChange([...media, ...json.media])
+      toast.success(`Generated ${json.generated} visuals${json.generated < json.requested ? ` (${json.requested - json.generated} retried later)` : ''}`)
+    } catch {
+      toast.error('Visual set generation failed — check your connection')
+    } finally {
+      setGeneratingSet(false)
+    }
+  }
+
   async function handleDelete(id: string) {
     const { error } = await supabase.from('sermon_media').delete().eq('id', id)
     if (error) { toast.error(error.message); return }
@@ -183,6 +204,36 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {/* One-click full visual set — powers a background image on every slide */}
+          <div className="rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-500/10 to-blue-600/10 p-4 space-y-3">
+            <div className="flex items-start gap-3">
+              <div className="rounded-md bg-amber-400/20 p-2 shrink-0">
+                <Wand2 className="h-5 w-5 text-amber-300" />
+              </div>
+              <div className="space-y-0.5">
+                <p className="text-white font-medium text-sm">Generate a full visual set</p>
+                <p className="text-white/50 text-xs leading-relaxed">
+                  Creates one cinematic scene for the title, the scripture, and each main point — so your slides
+                  carry a rich background image throughout the deck.
+                </p>
+              </div>
+            </div>
+            <Button
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2 font-medium"
+              onClick={generateVisualSet}
+              disabled={generatingSet || !draft}
+            >
+              {generatingSet ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+              {generatingSet ? 'Creating your visual set…' : 'Generate Visual Set'}
+            </Button>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-white/30 text-xs">or create one at a time</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+
           {/* Kind pills */}
           <div className="flex flex-wrap gap-2">
             {VISUAL_TYPES.map((t) => (

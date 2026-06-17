@@ -1,6 +1,7 @@
 import PptxGenJS from 'pptxgenjs'
 import type { Sermon, StructuredSermon, SermonMedia, ExportTemplateId } from '@/types'
 import { getTheme, SLIDE_COUNT } from '@/lib/sermon/templates'
+import { prepareImage } from '@/lib/exports/image'
 
 const W = 13.33
 const H = 7.5
@@ -30,19 +31,6 @@ function chunkText(text: string, maxChars: number): string[] {
   return chunks
 }
 
-async function urlToBase64(url: string): Promise<string | null> {
-  try {
-    const res = await fetch(url)
-    const blob = await res.blob()
-    return new Promise((resolve) => {
-      const reader = new FileReader()
-      reader.onload = () => resolve(reader.result as string)
-      reader.readAsDataURL(blob)
-    })
-  } catch {
-    return null
-  }
-}
 
 export async function generatePPT(
   sermon: Sermon,
@@ -61,13 +49,26 @@ export async function generatePPT(
 
   const dateLabel = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
-  // Preload images
-  const images: { data: string; caption: string | null; kind: string }[] = []
-  for (const item of media) {
-    if (!item.public_url) continue
-    const data = await urlToBase64(item.public_url)
-    if (data) images.push({ data, caption: item.caption, kind: item.kind })
-  }
+  // Preload + compress images (downscaled JPEG keeps the deck a few MB even
+  // with a background on every slide). Done in parallel for speed.
+  const prepared = await Promise.all(
+    media.map(async (item) => {
+      if (!item.public_url) return null
+      const p = await prepareImage(item.public_url)
+      return p ? { data: p.dataUrl, caption: item.caption, kind: item.kind } : null
+    })
+  )
+  const images = prepared.filter(Boolean) as { data: string; caption: string | null; kind: string }[]
+
+  // Cinematic background pool — every content slide pulls a full-bleed image
+  // (cycled) behind a readability scrim. Empty pool ⇒ solid theme backgrounds.
+  const pool = images.map((i) => i.data)
+  // Title uses pool[0]; start content cycling at pool[1] when we have variety.
+  let cycleIdx = pool.length > 1 ? 1 : 0
+  const nextImg = (): string | null => (pool.length ? pool[cycleIdx++ % pool.length] : null)
+  // Dark themes get a lighter scrim (light text already pops); light themes
+  // need a heavier wash so their dark text stays legible over photography.
+  const scrimTransparency = t.mode === 'dark' ? 32 : 20
 
   // ── Plan content slides to approach the requested slide count ──
   const points = structured.main_points
@@ -112,9 +113,18 @@ export async function generatePPT(
     slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: W, h: 0.09, fill: { color: t.accent } })
   }
 
-  function newSlide(bg = t.bg): PptxGenJS.Slide {
+  // Full-bleed cover image + readability scrim, placed behind all content.
+  function coverWithScrim(slide: PptxGenJS.Slide, data: string) {
+    slide.addImage({ data, x: 0, y: 0, w: W, h: H, sizing: { type: 'cover', w: W, h: H } })
+    slide.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: W, h: H, fill: { color: t.bgAlt, transparency: scrimTransparency }, line: { type: 'none' } })
+    // Subtle bottom gradient anchor for footers / captions
+    slide.addShape(pptx.ShapeType.rect, { x: 0, y: H - 1.4, w: W, h: 1.4, fill: { color: t.bgAlt, transparency: 55 }, line: { type: 'none' } })
+  }
+
+  function newSlide(bg = t.bg, img?: string | null): PptxGenJS.Slide {
     const s = pptx.addSlide()
     s.background = { color: bg }
+    if (img) coverWithScrim(s, img)
     slideNo += 1
     return s
   }
@@ -155,7 +165,7 @@ export async function generatePPT(
 
   // ── Scripture feature slide ──
   if (structured.scripture) {
-    const q = newSlide()
+    const q = newSlide(t.bg, nextImg())
     addCorners(q)
     q.addText('“', { x: 0.9, y: 0.5, w: 2, h: 1.6, fontSize: 130, color: t.accent, fontFace: t.serif, bold: true })
     q.addText(structured.scripture, {
@@ -170,7 +180,7 @@ export async function generatePPT(
 
   // ── Introduction ──
   for (const chunk of chunkText(structured.introduction, charsPerSlide)) {
-    const s = newSlide()
+    const s = newSlide(t.bg, nextImg())
     topBar(s)
     kicker(s, 'Introduction')
     s.addText(chunk, { x: 1.1, y: 1.5, w: W - 2.6, h: 4.9, fontSize: 21, color: t.text, fontFace: t.sans, valign: 'middle', lineSpacingMultiple: 1.45 })
@@ -182,7 +192,7 @@ export async function generatePPT(
   points.forEach((pt, idx) => {
     const num = String(idx + 1).padStart(2, '0')
     // Divider slide
-    const d = newSlide(t.bgAlt)
+    const d = newSlide(t.bgAlt, nextImg())
     d.addShape(pptx.ShapeType.rect, { x: 0, y: 0, w: 0.18, h: H, fill: { color: t.accent } })
     d.addText(num, { x: W - 5.6, y: 0.8, w: 5.8, h: 5.8, fontSize: 290, color: t.panel, bold: true, fontFace: t.serif, align: 'right' })
     d.addText((structured.title || sermon.title).toUpperCase(), { x: 0.9, y: 0.55, w: W - 2, h: 0.35, fontSize: 12, color: t.accent, fontFace: t.sans, charSpacing: 4 })
@@ -193,7 +203,7 @@ export async function generatePPT(
     footer(d)
 
     if (pt.scripture) {
-      const q = newSlide()
+      const q = newSlide(t.bg, nextImg())
       addCorners(q, 0.45, 0.7)
       q.addText(`“${pt.scripture}”`, { x: 1.4, y: 2.3, w: W - 2.8, h: 2.8, fontSize: 26, italic: true, color: t.text, align: 'center', valign: 'middle', fontFace: t.serif, lineSpacingMultiple: 1.3 })
       q.addNotes(pt.scripture)
@@ -201,7 +211,7 @@ export async function generatePPT(
     }
 
     for (const chunk of chunkText(pt.body, charsPerSlide)) {
-      const s = newSlide()
+      const s = newSlide(t.bg, nextImg())
       topBar(s)
       kicker(s, pt.heading)
       s.addText(chunk, { x: 1.1, y: 1.5, w: W - 2.6, h: 4.9, fontSize: 21, color: t.text, fontFace: t.sans, valign: 'middle', lineSpacingMultiple: 1.45 })
@@ -213,7 +223,7 @@ export async function generatePPT(
   // ── Applications (bulleted, max 5 / slide) ──
   for (let i = 0; i < structured.applications.length; i += 5) {
     const slice = structured.applications.slice(i, i + 5)
-    const s = newSlide()
+    const s = newSlide(t.bg, nextImg())
     topBar(s)
     kicker(s, structured.applications.length > 5 ? `Application (${Math.floor(i / 5) + 1})` : 'Application')
     s.addText(
@@ -227,7 +237,7 @@ export async function generatePPT(
   // ── Conclusion ──
   if (structured.conclusion) {
     for (const chunk of chunkText(structured.conclusion, charsPerSlide + 120)) {
-      const s = newSlide()
+      const s = newSlide(t.bg, nextImg())
       topBar(s)
       kicker(s, 'Conclusion')
       s.addText(chunk, { x: 1.1, y: 1.5, w: W - 2.6, h: 4.9, fontSize: 22, color: t.text, fontFace: t.sans, valign: 'middle', lineSpacingMultiple: 1.5 })
@@ -236,18 +246,9 @@ export async function generatePPT(
     }
   }
 
-  // ── Visual slides ──
-  for (const img of images) {
-    const s = newSlide(t.bgAlt)
-    s.addImage({ data: img.data, x: 0, y: 0, w: W, h: H, sizing: { type: 'contain', w: W, h: H } })
-    addCorners(s, 0.3, 0.7)
-    if (img.caption) {
-      s.addShape(pptx.ShapeType.rect, { x: 0, y: H - 0.85, w: W, h: 0.85, fill: { color: t.bgAlt, transparency: 25 } })
-      s.addText(img.caption, { x: 0.8, y: H - 0.78, w: W - 1.6, h: 0.7, fontSize: 16, color: 'F5F1E6', align: 'center', italic: true, fontFace: t.serif, valign: 'middle' })
-    }
-    s.addNotes(`Visual (${img.kind.replace(/_/g, ' ')})${img.caption ? `: ${img.caption}` : ''}`)
-    footer(s)
-  }
+  // Images appear as full-bleed backgrounds on every content slide above, so
+  // no separate gallery slides are added — that keeps the deck tight and every
+  // visual purposeful.
 
   // ── Prayer / closing ──
   const close = newSlide(t.bgAlt)

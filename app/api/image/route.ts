@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { generateImageBase64, generateText, MODELS } from '@/lib/gemini'
 import { userOwnsSermon, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
+import { uploadSermonImage } from '@/lib/api/storage'
 import type { MediaKind } from '@/types'
 
 const VALID_KINDS: MediaKind[] = ['image', 'map', 'timeline', 'scripture_slide', 'graphic']
@@ -70,33 +71,16 @@ Return ONLY the image prompt as a single sentence, no explanation, no quotes.`
   }
 
   const adminClient = await createAdminClient()
-  const filename = `${user.id}/${sermonId}/${Date.now()}-${mediaKind}.png`
-  // Upload as a Blob (not a raw Node Buffer) — undici can mishandle large
-  // Buffer bodies and drop the socket mid-write (EPIPE). Retry transient
-  // network failures with a short backoff.
-  const bytes = Uint8Array.from(Buffer.from(base64, 'base64'))
-  const blob = new Blob([bytes], { type: 'image/png' })
-
-  let uploadError: { message: string } | null = null
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    try {
-      const up = await adminClient.storage
-        .from('sermon-media')
-        .upload(filename, blob, { contentType: 'image/png', upsert: true })
-      uploadError = up.error
-      if (!up.error) { uploadError = null; break }
-    } catch (err) {
-      uploadError = { message: (err as Error)?.message ?? 'upload failed' }
-    }
-    if (attempt < 3) await new Promise((r) => setTimeout(r, 400 * attempt))
-  }
-
-  if (uploadError) {
-    console.error('Image storage upload error:', uploadError)
+  let filename: string
+  let publicUrl: string
+  try {
+    const up = await uploadSermonImage(adminClient, user.id, sermonId, mediaKind, base64)
+    filename = up.storagePath
+    publicUrl = up.publicUrl
+  } catch (err) {
+    console.error('Image storage upload error:', err)
     return NextResponse.json({ error: 'Could not save the generated image — please try again' }, { status: 502 })
   }
-
-  const { data: { publicUrl } } = adminClient.storage.from('sermon-media').getPublicUrl(filename)
 
   // If regenerating, delete the old media item first
   if (regenerateId) {
