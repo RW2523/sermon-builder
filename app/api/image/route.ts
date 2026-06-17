@@ -71,13 +71,30 @@ Return ONLY the image prompt as a single sentence, no explanation, no quotes.`
 
   const adminClient = await createAdminClient()
   const filename = `${user.id}/${sermonId}/${Date.now()}-${mediaKind}.png`
-  const buffer = Buffer.from(base64, 'base64')
+  // Upload as a Blob (not a raw Node Buffer) — undici can mishandle large
+  // Buffer bodies and drop the socket mid-write (EPIPE). Retry transient
+  // network failures with a short backoff.
+  const bytes = Uint8Array.from(Buffer.from(base64, 'base64'))
+  const blob = new Blob([bytes], { type: 'image/png' })
 
-  const { error: uploadError } = await adminClient.storage
-    .from('sermon-media')
-    .upload(filename, buffer, { contentType: 'image/png', upsert: false })
+  let uploadError: { message: string } | null = null
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const up = await adminClient.storage
+        .from('sermon-media')
+        .upload(filename, blob, { contentType: 'image/png', upsert: true })
+      uploadError = up.error
+      if (!up.error) { uploadError = null; break }
+    } catch (err) {
+      uploadError = { message: (err as Error)?.message ?? 'upload failed' }
+    }
+    if (attempt < 3) await new Promise((r) => setTimeout(r, 400 * attempt))
+  }
 
-  if (uploadError) return NextResponse.json({ error: uploadError.message }, { status: 500 })
+  if (uploadError) {
+    console.error('Image storage upload error:', uploadError)
+    return NextResponse.json({ error: 'Could not save the generated image — please try again' }, { status: 502 })
+  }
 
   const { data: { publicUrl } } = adminClient.storage.from('sermon-media').getPublicUrl(filename)
 

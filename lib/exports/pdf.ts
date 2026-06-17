@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf'
 import type { Sermon, StructuredSermon, SermonMedia, ExportTemplateId } from '@/types'
-import { getTheme, withHash } from '@/lib/sermon/templates'
+import { getTheme, withHash, contrastText } from '@/lib/sermon/templates'
 
 interface ExportOpts {
   templateId?: ExportTemplateId
@@ -119,17 +119,23 @@ export async function generatePDF(
     }
   }
 
+  // On the white-paper PDF the panel must stay light regardless of theme —
+  // dark-mode themes (navy/purple/slate) have a dark t.panel, so use a warm
+  // light tint there and let contrastText pick readable (dark) text.
+  const scripturePanel = t.mode === 'light' ? t.panel : 'F2ECDE'
+  const scriptureText = withHash(contrastText(scripturePanel))
+
   function scriptureBlock(text: string) {
     const lines = doc.splitTextToSize(text, contentW - 8)
     const blockH = lines.length * 5.4 + 6
     checkPage(blockH)
-    doc.setFillColor(withHash(t.panel))
+    doc.setFillColor(withHash(scripturePanel))
     doc.rect(margin, y - 1, contentW, blockH, 'F')
     doc.setFillColor(accent)
     doc.rect(margin, y - 1, 1.5, blockH, 'F')
     doc.setFont('times', 'italic')
     doc.setFontSize(10.5)
-    doc.setTextColor(t.mode === 'light' ? withHash(t.text) : withHash('2A3142'))
+    doc.setTextColor(scriptureText)
     let yy = y + 4
     for (const line of lines) {
       doc.text(line, margin + 6, yy)
