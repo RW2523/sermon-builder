@@ -17,6 +17,8 @@ import {
 import type { Sermon, SermonInput, SermonDraft, TemplateType } from '@/types'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { TONES, LANGUAGES } from '@/lib/sermon/templates'
+import { htmlToStructured } from '@/lib/sermon/legacy'
 
 const TEMPLATES: { value: TemplateType; label: string; desc: string; icon: string; color: string }[] = [
   { value: 'message',     label: 'Sunday Message',   desc: 'Classic 3-point sermon',       icon: '📖', color: 'border-amber-400 bg-blue-950/40' },
@@ -56,6 +58,8 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
   const [applying, setApplying] = useState(false)
   const [saving, setSaving] = useState(false)
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateType>(draft?.template_type ?? 'message')
+  const [tone, setTone] = useState(sermon.tone ?? 'Inspirational')
+  const [language, setLanguage] = useState(sermon.language ?? 'English')
   const [suggestions, setSuggestions] = useState<Suggestions | null>(null)
   const [loadingSuggestions, setLoadingSuggestions] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -86,14 +90,17 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
           title: sermon.title,
           scriptureRef: sermon.scripture_ref,
           theme: sermon.theme,
+          tone,
+          language,
+          style: selectedTemplate,
         }),
       })
       const json = await res.json()
-      if (!res.ok) { toast.error(json.error ?? 'Polish failed'); return }
+      if (!res.ok) { toast.error(json.error ?? 'Generation failed'); return }
       editor?.commands.setContent(json.draft.polished_html)
       onDraftChange(json.draft)
-      onSermonChange({ ...sermon, status: 'polished' })
-      toast.success('Sermon polished!')
+      onSermonChange({ ...sermon, status: 'polished', tone, language, title: json.draft.structured?.title ?? sermon.title })
+      toast.success('Sermon ready!')
     } catch {
       toast.error('Polish failed — check your connection')
     } finally {
@@ -102,8 +109,9 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
   }
 
   async function handleApplyTemplate() {
+    if (!draft?.id) { toast.error('Generate your sermon first'); return }
     const html = editor?.getHTML() ?? ''
-    if (!html || html === '<p></p>') { toast.error('Polish your sermon first'); return }
+    const structured = draft.structured ?? htmlToStructured(html, sermon.title)
     setApplying(true)
     try {
       const res = await fetch('/api/template', {
@@ -111,19 +119,21 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sermonId: sermon.id,
-          draftId: draft?.id,
-          currentHtml: html,
+          draftId: draft.id,
+          structured,
           templateType: selectedTemplate,
+          tone,
+          language,
         }),
       })
       const json = await res.json()
-      if (!res.ok) { toast.error(json.error ?? 'Template conversion failed'); return }
+      if (!res.ok) { toast.error(json.error ?? 'Reformat failed'); return }
       editor?.commands.setContent(json.draft.polished_html)
       onDraftChange(json.draft)
       const tpl = TEMPLATES.find(t => t.value === selectedTemplate)
-      toast.success(`Converted to ${tpl?.label ?? selectedTemplate} format!`)
+      toast.success(`Reformatted to ${tpl?.label ?? selectedTemplate}!`)
     } catch {
-      toast.error('Template conversion failed — check your connection')
+      toast.error('Reformat failed — check your connection')
     } finally {
       setApplying(false)
     }
@@ -167,9 +177,11 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
     const html = editor?.getHTML() ?? ''
     if (!draft?.id) return
     setSaving(true)
+    // Keep the structured source of truth in sync with manual HTML edits so exports stay accurate
+    const structured = htmlToStructured(html, sermon.title)
     const { data, error } = await supabase
       .from('sermon_drafts')
-      .update({ polished_html: html })
+      .update({ polished_html: html, structured })
       .eq('id', draft.id)
       .select()
       .single()
@@ -177,7 +189,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
     if (error) { toast.error(error.message); return }
     onDraftChange(data)
     toast.success('Draft saved')
-  }, [editor, draft, supabase, onDraftChange])
+  }, [editor, draft, supabase, onDraftChange, sermon.title])
 
   if (!editor) return null
 
@@ -194,15 +206,38 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-white/50 text-sm leading-relaxed">
-              All your Stage 1 content — notes, dictation, audio transcriptions, documents, and scripture — is transformed into one powerful, structured sermon draft.
+              All your Stage 1 content is shaped into one structured sermon draft — in your chosen voice and language.
             </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <label className="text-white/40 text-[11px] uppercase tracking-wider">Tone</label>
+                <select
+                  value={tone}
+                  onChange={(e) => setTone(e.target.value)}
+                  className="w-full rounded-md border border-white/15 bg-white/10 text-white text-sm px-2 py-1.5 focus:outline-none focus:border-amber-400/60"
+                >
+                  {TONES.map((t) => <option key={t.id} value={t.id} className="bg-slate-900">{t.label}</option>)}
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-white/40 text-[11px] uppercase tracking-wider">Language</label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="w-full rounded-md border border-white/15 bg-white/10 text-white text-sm px-2 py-1.5 focus:outline-none focus:border-amber-400/60"
+                >
+                  {LANGUAGES.map((l) => <option key={l.code} value={l.code} className="bg-slate-900">{l.label}</option>)}
+                </select>
+              </div>
+            </div>
+            <p className="text-white/30 text-[11px] leading-snug">{TONES.find((t) => t.id === tone)?.hint}</p>
             <Button
               className="w-full bg-yellow-600 hover:bg-yellow-500 gap-2"
               onClick={handlePolish}
               disabled={polishing || !inputs.length}
             >
               {polishing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {polishing ? 'Polishing…' : `Polish ${inputs.length} Source${inputs.length !== 1 ? 's' : ''}`}
+              {polishing ? 'Generating…' : `Generate from ${inputs.length} Source${inputs.length !== 1 ? 's' : ''}`}
             </Button>
             {!inputs.length && (
               <p className="text-white/30 text-xs text-center">← Go to Stage 1 to add content first</p>

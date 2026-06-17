@@ -12,9 +12,11 @@ import {
   Copy, CheckCheck, Globe, Mic, MicOff, Download, Sparkles,
   ExternalLink, BookOpen, Printer, ChevronDown, ChevronUp
 } from 'lucide-react'
-import type { Sermon, SermonDraft, SermonMedia, OutreachPost } from '@/types'
+import type { Sermon, SermonDraft, SermonMedia, OutreachPost, ExportTemplateId, StructuredSermon } from '@/types'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { EXPORT_THEMES, SLIDE_COUNT, isComplexScript, withHash } from '@/lib/sermon/templates'
+import { htmlToStructured } from '@/lib/sermon/legacy'
 
 interface Props {
   sermon: Sermon
@@ -39,6 +41,22 @@ export default function Stage4Export({
   const [videoProgress, setVideoProgress] = useState(0)
   const [videoUrl, setVideoUrl] = useState<string | null>(null)
 
+  // Design / format controls
+  const [templateId, setTemplateId] = useState<ExportTemplateId>(sermon.export_template ?? 'navy_gold')
+  const [slideCount, setSlideCount] = useState<number>(SLIDE_COUNT.default)
+
+  // The structured sermon is the export source of truth; fall back for legacy drafts
+  function resolveStructured(): StructuredSermon | null {
+    if (!draft) return null
+    return draft.structured ?? htmlToStructured(draft.polished_html ?? '', sermon.title)
+  }
+
+  async function persistTemplate(id: ExportTemplateId) {
+    setTemplateId(id)
+    onSermonChange({ ...sermon, export_template: id })
+    await supabase.from('sermons').update({ export_template: id }).eq('id', sermon.id)
+  }
+
   // Speaker notes
   const [generatingNotes, setGeneratingNotes] = useState(false)
   const [showNotes, setShowNotes] = useState(false)
@@ -59,37 +77,61 @@ export default function Stage4Export({
   const startTimeRef = useRef<number>(0)
 
   async function handleExportPDF() {
-    if (!draft) { toast.error('No draft available'); return }
+    const structured = resolveStructured()
+    if (!structured) { toast.error('Generate your sermon first'); return }
+    // jsPDF can't shape complex scripts (Hindi/Tamil/Telugu/Malayalam) — the
+    // browser print view renders those faithfully, so route there instead.
+    if (isComplexScript(sermon.language)) {
+      const { openPrintView } = await import('@/lib/exports/print')
+      openPrintView(sermon, structured, media, { templateId, speakerNotes: editableNotes || draft?.speaker_notes, language: sermon.language })
+      toast.info(`Opened print view for ${sermon.language} — use “Save as PDF” in the print dialog`)
+      return
+    }
     setExportingPDF(true)
-    const { generatePDF } = await import('@/lib/exports/pdf')
-    const blob = await generatePDF(sermon, draft, media)
-    setExportingPDF(false)
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `${sermon.title}.pdf`; a.click()
-    URL.revokeObjectURL(url)
-    toast.success('PDF downloaded!')
+    try {
+      const { generatePDF } = await import('@/lib/exports/pdf')
+      const blob = await generatePDF(sermon, structured, media, { templateId })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `${sermon.title}.pdf`; a.click()
+      URL.revokeObjectURL(url)
+      toast.success('PDF downloaded!')
+    } catch (err) {
+      console.error(err)
+      toast.error('PDF export failed — please try again')
+    } finally {
+      setExportingPDF(false)
+    }
   }
 
   async function handleExportPPT() {
-    if (!draft) { toast.error('No draft available'); return }
+    const structured = resolveStructured()
+    if (!structured) { toast.error('Generate your sermon first'); return }
     setExportingPPT(true)
-    const { generatePPT } = await import('@/lib/exports/ppt')
-    const speakerNotes = editableNotes || draft.speaker_notes
-    const blob = await generatePPT(sermon, draft, media, speakerNotes)
-    setExportingPPT(false)
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url; a.download = `${sermon.title}.pptx`; a.click()
-    URL.revokeObjectURL(url)
-    toast.success('PowerPoint with speaker notes downloaded!')
+    try {
+      const { generatePPT } = await import('@/lib/exports/ppt')
+      const blob = await generatePPT(sermon, structured, media, {
+        templateId, slideCount, speakerNotes: editableNotes || draft?.speaker_notes,
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url; a.download = `${sermon.title}.pptx`; a.click()
+      URL.revokeObjectURL(url)
+      toast.success('PowerPoint downloaded!')
+    } catch (err) {
+      console.error(err)
+      toast.error('PowerPoint export failed — please try again')
+    } finally {
+      setExportingPPT(false)
+    }
   }
 
   async function handlePrintNotes() {
-    if (!draft) { toast.error('No draft available'); return }
+    const structured = resolveStructured()
+    if (!structured) { toast.error('Generate your sermon first'); return }
     const { openPrintView } = await import('@/lib/exports/print')
-    openPrintView(sermon, draft, media, editableNotes || draft.speaker_notes)
-    toast.success('Print view opened — use Ctrl/Cmd+P to print')
+    openPrintView(sermon, structured, media, { templateId, speakerNotes: editableNotes || draft?.speaker_notes, language: sermon.language })
+    toast.success('Print view opened — use Ctrl/Cmd+P to print or save as PDF')
   }
 
   async function handleGenerateSpeakerNotes() {
@@ -292,6 +334,58 @@ export default function Stage4Export({
               </Button>
             </div>
           )}
+        </CardContent>
+      </Card>
+
+      {/* Design & format controls */}
+      <Card className="border-white/10 bg-white/5 text-white">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm text-white/80 flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-amber-400" /> Design & Format
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-white/40 text-[11px] uppercase tracking-wider">Export theme</label>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {Object.values(EXPORT_THEMES).map((th) => (
+                <button
+                  key={th.id}
+                  onClick={() => persistTemplate(th.id)}
+                  className={cn(
+                    'rounded-lg border p-2 text-left transition-all',
+                    templateId === th.id ? 'border-amber-400 ring-1 ring-amber-400/40' : 'border-white/10 hover:border-white/30'
+                  )}
+                >
+                  <div className="flex gap-1 mb-1.5">
+                    <span className="h-4 w-4 rounded-full border border-white/20" style={{ background: withHash(th.bg) }} />
+                    <span className="h-4 w-4 rounded-full border border-white/20" style={{ background: withHash(th.accent) }} />
+                    <span className="h-4 w-4 rounded-full border border-white/20" style={{ background: withHash(th.panel) }} />
+                  </div>
+                  <p className="text-white/70 text-[11px] leading-tight">{th.label}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-white/40 text-[11px] uppercase tracking-wider">Slide count (PowerPoint)</label>
+              <span className="text-amber-300 text-sm font-medium">{slideCount} slides</span>
+            </div>
+            <input
+              type="range"
+              min={SLIDE_COUNT.min}
+              max={SLIDE_COUNT.max}
+              value={slideCount}
+              onChange={(e) => setSlideCount(Number(e.target.value))}
+              className="w-full accent-amber-400"
+              aria-label="Slide count"
+            />
+            <div className="flex justify-between text-white/30 text-[10px]">
+              <span>Concise · {SLIDE_COUNT.min}</span>
+              <span>Detailed · {SLIDE_COUNT.max}</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 

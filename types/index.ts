@@ -15,6 +15,44 @@ export type TemplateType =
 export type MediaKind = 'image' | 'map' | 'timeline' | 'scripture_slide' | 'graphic'
 export type ExportFormat = 'pdf' | 'ppt' | 'video' | 'print'
 
+// ── v2 structured sermon model (source of truth for editor + exports) ──
+export interface SermonPoint {
+  heading: string
+  body: string
+  scripture?: string | null
+}
+
+export interface StructuredSermon {
+  title: string
+  theme: string
+  scripture: string
+  introduction: string
+  main_points: SermonPoint[]
+  applications: string[]
+  conclusion: string
+  prayer: string
+}
+
+export type ExportTemplateId =
+  | 'navy_gold'
+  | 'light_classic'
+  | 'royal_purple'
+  | 'minimal_slate'
+  | 'warm_sand'
+
+export interface SermonTone {
+  id: string
+  label: string
+  hint: string
+}
+
+export interface SermonLanguage {
+  code: string
+  label: string
+  /** true when the script needs system/browser fonts (not Latin) for faithful PDF rendering */
+  complexScript?: boolean
+}
+
 export interface Profile {
   id: string
   full_name: string | null
@@ -32,6 +70,9 @@ export interface Sermon {
   current_stage: SermonStage
   scripture_ref: string | null
   theme: string | null
+  language: string
+  tone: string
+  export_template: ExportTemplateId
   created_at: string
   updated_at: string
 }
@@ -50,6 +91,7 @@ export interface SermonDraft {
   id: string
   sermon_id: string
   polished_html: string | null
+  structured: StructuredSermon | null
   template_type: TemplateType
   version: number
   speaker_notes: string | null

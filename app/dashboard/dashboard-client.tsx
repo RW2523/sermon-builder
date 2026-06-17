@@ -174,7 +174,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
             <div>
               <p className="font-display text-xl font-semibold">Your first sermon starts here</p>
               <p className="text-white/45 text-sm mt-1 max-w-sm mx-auto">
-                Bring your notes, voice memos, or a passage of scripture — we'll help with the rest.
+                Bring your notes, voice memos, or a passage of scripture — we&apos;ll help with the rest.
               </p>
             </div>
             <Button

@@ -1,180 +1,92 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { generateText, MODELS } from '@/lib/gemini'
+import { generateText, parseModelJson, MODELS } from '@/lib/gemini'
 import { userOwnsSermon, getOwnedDraft, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
+import { normalizeStructured, structuredToHtml, structuredToPlainText } from '@/lib/sermon/structured'
+import type { StructuredSermon } from '@/types'
 
 export const maxDuration = 60
 
-const TEMPLATE_INSTRUCTIONS: Record<string, string> = {
-  prayer: `Restructure this content as a Prayer-Focused message. Include:
-- Opening prayer/invocation with scriptural grounding
-- Scripture-based petitions for the congregation
-- Intercession points organized by topic (personal, family, church, nation)
-- Sections of thanksgiving and praise
-- Reflective scripture meditation
-- Closing benediction prayer
-Use flowing, reverent, and intimate language suitable for communal prayer.`,
-
-  message: `Structure this as a classic Sunday Message with:
-- A hook: engaging opening illustration, story, or provocative question
-- Scripture introduction with historical/cultural context
-- 3 clear main points, each with a sub-point and real-life application
-- Transition phrases connecting each section
-- One strong illustration or modern analogy per point
-- Memorable, quotable closing statement
-- Clear call to action for the congregation`,
-
-  story: `Reshape this into a Story-Driven Narrative Sermon with:
-- A captivating opening story or scene that creates emotional engagement
-- A biblical character or story as the central narrative thread
-- Parallel storyline connecting ancient and modern contexts
-- Emotional connection points that draw the listener in
-- Rising tension and resolution mirroring the Gospel
-- Personal application woven naturally throughout
-- A powerful, story-closing spiritual takeaway
-Use narrative, descriptive, conversational language.`,
-
-  devotional: `Convert this into a Daily Devotional format with:
-- A compelling opening verse displayed prominently
-- Brief, warm devotional reflection (2-3 paragraphs maximum)
-- One personal application challenge or question
-- A guided prayer response
-- A closing thought, quote, or additional scripture
-Keep it concise (under 500 words), intimate, and personally applicable.`,
-
-  teaching: `Format this as an In-Depth Bible Teaching with:
-- Introduction with clear learning objectives
-- Historical, cultural, and literary context of the scripture
-- Verse-by-verse or thematic expository breakdown
-- Original language (Greek/Hebrew) word insights where applicable
-- Theological connections and cross-references
-- Practical application points clearly labeled
-- Discussion questions for small groups or personal reflection
-- Summary and key takeaways
-Use clear, instructional, scholarly-yet-accessible language.`,
-
-  testimony: `Transform this into a Testimony-Style Message with:
-- Opening: the "before" — setting the scene of need or struggle
-- The turning point: how God intervened or the scripture spoke
-- The "after": the transformation, healing, or revelation received
-- Biblical backing: scriptures that validate the experience
-- Universal application: how this testimony applies to everyone listening
-- An invitation: encouraging others to trust God in their own journey
-Use personal, vulnerable, emotionally honest language.`,
-
-  youth: `Reformat this as a Youth-Focused Message with:
-- A high-energy, culturally relevant opening (pop culture reference, current event, or challenge)
-- Clear, simple language (avoid heavy theological jargon)
-- Short, punchy points — 2-3 maximum
-- Relatable modern illustrations (social media, school, sports, relationships)
-- Interactive engagement prompts ("Has anyone ever felt...?")
-- A challenge or dare for the week
-- A clear, action-oriented closing that inspires change
-Use energetic, authentic, youth-culture-aware language.`,
-
-  small_group: `Convert this into a Small Group Discussion Guide with:
-- Session title and opening icebreaker question
-- Key scripture passage(s) to read together
-- Brief teaching context (3-5 minutes of reading material for the leader)
-- 5-7 discussion questions (mix of observation, interpretation, and application)
-- A practical challenge or homework assignment
-- Group prayer focus points
-- Optional: resource recommendations for deeper study
-Format with clear headers so a group leader can facilitate easily.`,
-
-  storytelling: `Reformat as a Storytelling-Format Sermon with:
-- A gripping opening story hook (first 90 seconds must captivate)
-- Interwoven biblical narrative and contemporary story running in parallel
-- Sensory, descriptive language that creates vivid mental imagery
-- Character development showing spiritual growth or transformation
-- Story beats: setup, conflict, climax, resolution, application
-- Repeated narrative motifs or imagery that reinforces the main theme
-- A closing that returns to the opening story for satisfying resolution
-Write it as a script that flows naturally when spoken aloud.`,
-
-  custom: `Polish and enhance this content while maintaining its current structure. Improve:
-- Grammar, clarity, and sentence flow
-- Transitions between sections
-- Language power and impact
-- Scripture integration
-- Closing strength and call to action`,
+const STYLE_INSTRUCTIONS: Record<string, string> = {
+  prayer: 'Reframe as a prayer-focused message: invocation, scripture-based petitions by theme, thanksgiving, and a closing benediction.',
+  message: 'Reshape into a classic Sunday message: a strong hook, scripture in context, 3 clear main points each with illustration and application, and a memorable call to action.',
+  story: 'Rebuild as a story-driven narrative sermon around a biblical character or scene, weaving ancient and modern contexts with rising tension and resolution.',
+  devotional: 'Condense into an intimate daily devotional under 600 words: a key verse, a warm reflection, one application, and a guided prayer.',
+  teaching: 'Format as an in-depth Bible teaching: learning objectives, historical/cultural context, verse-by-verse exposition, cross-references, and discussion questions.',
+  testimony: 'Transform into a testimony-style message: the before/struggle, the turning point, the after/transformation, with scripture that validates the journey.',
+  youth: 'Reformat as a high-energy youth message: a culturally relevant opening, short punchy points, relatable modern illustrations, and an action challenge.',
+  small_group: 'Convert into a small-group discussion guide: icebreaker, passages to read, teaching context, 5-7 discussion questions, and a prayer focus.',
+  storytelling: 'Reformat as a vivid storytelling sermon written to be spoken aloud, with sensory language and a closing that returns to the opening image.',
+  custom: 'Polish and strengthen the sermon while preserving its current structure: clearer transitions, sharper language, stronger scripture integration.',
 }
 
 export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
   if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
-    return NextResponse.json({ error: 'Too many AI requests — please try again later' }, { status: 429 })
+    return NextResponse.json({ error: 'Too many requests — please try again later' }, { status: 429 })
   }
 
-  const { sermonId, draftId, currentHtml, templateType } = await req.json()
-  if (!sermonId || !currentHtml || !templateType) {
+  const { sermonId, draftId, structured, templateType, tone = 'Inspirational', language = 'English' } = await req.json()
+  if (!sermonId || !draftId || !structured || !templateType) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
   if (!(await userOwnsSermon(supabase, sermonId, user.id))) {
     return NextResponse.json({ error: 'Sermon not found' }, { status: 404 })
   }
-  if (draftId) {
-    const draft = await getOwnedDraft(supabase, draftId)
-    if (!draft || draft.sermon_id !== sermonId) {
-      return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
-    }
+  const owned = await getOwnedDraft(supabase, draftId)
+  if (!owned || owned.sermon_id !== sermonId) {
+    return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
   }
 
-  const instructions = TEMPLATE_INSTRUCTIONS[templateType] ?? TEMPLATE_INSTRUCTIONS.custom
+  const current = normalizeStructured(structured)
+  const instruction = STYLE_INSTRUCTIONS[templateType] ?? STYLE_INSTRUCTIONS.custom
 
-  const prompt = `You are an expert sermon writer and ministry communication specialist. Reformat the following sermon content into the specified template format.
+  const prompt = `You are an expert sermon editor. Reformat the following sermon into a new style while preserving its scripture, substance, and key insights.
 
-Template: ${templateType.toUpperCase().replace('_', ' ')}
+Target style: ${instruction}
+Tone/voice: ${tone}
+Language: write everything in ${language}
 
-Instructions:
-${instructions}
+Current sermon:
+${structuredToPlainText(current)}
 
-Current Sermon Content (HTML):
-${currentHtml}
+Return ONLY a valid JSON object (no fences, no commentary) with this exact shape:
+{
+  "title": "...",
+  "theme": "...",
+  "scripture": "Key passage(s) with text",
+  "introduction": "...",
+  "main_points": [ { "heading": "...", "body": "...", "scripture": "optional" } ],
+  "applications": ["..."],
+  "conclusion": "...",
+  "prayer": "..."
+}`
 
-Return ONLY valid HTML content using these elements: h2, h3, p, ul, li, ol, blockquote, strong, em. 
-- Use <blockquote> for scripture passages
-- Use <h2> for main sections
-- Use <h3> for sub-sections
-- No markdown, no code fences, no explanatory text — only the sermon HTML.`
-
-  let html: string
+  let raw: string
   try {
-    html = await generateText(prompt, MODELS.flash)
+    raw = await generateText(prompt, MODELS.flash)
   } catch (err) {
     console.error('Template generation failed:', err)
-    return NextResponse.json({ error: 'AI generation failed — please try again' }, { status: 502 })
+    return NextResponse.json({ error: 'Generation failed — please try again' }, { status: 502 })
   }
 
-  let data, error
-  if (draftId) {
-    const result = await supabase
-      .from('sermon_drafts')
-      .update({ polished_html: html, template_type: templateType })
-      .eq('id', draftId)
-      .select()
-      .single()
-    data = result.data; error = result.error
-  } else {
-    const { data: existing } = await supabase
-      .from('sermon_drafts')
-      .select('version')
-      .eq('sermon_id', sermonId)
-      .order('version', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    const result = await supabase
-      .from('sermon_drafts')
-      .insert({ sermon_id: sermonId, polished_html: html, template_type: templateType, version: (existing?.version ?? 0) + 1 })
-      .select()
-      .single()
-    data = result.data; error = result.error
+  let next: StructuredSermon
+  try {
+    next = normalizeStructured(parseModelJson(raw), current.title)
+  } catch (err) {
+    console.error('Template JSON parse failed:', err)
+    return NextResponse.json({ error: 'The result came back in an unexpected format — please try again' }, { status: 502 })
   }
+
+  const { data: draft, error } = await supabase
+    .from('sermon_drafts')
+    .update({ structured: next, polished_html: structuredToHtml(next), template_type: templateType })
+    .eq('id', draftId)
+    .select()
+    .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-  return NextResponse.json({ draft: data })
+  return NextResponse.json({ draft })
 }
