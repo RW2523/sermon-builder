@@ -20,6 +20,19 @@ export interface SlideVisual {
 
 const dateLabel = () => new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
 
+// Drop a leading "1. " / "2) " / "3 - " enumerator when a separate number
+// badge already shows the count (prevents "01  1. The Handover").
+const stripLeadNum = (s: string) => (s ?? '').replace(/^\s*\d+\s*[.)\-:]\s+/, '').trim()
+
+// Estimate the rendered height (inches) of a wrapped text block, for vertical
+// centering inside fixed panels so sparse content doesn't leave empty boxes.
+function estLines(text: string, fontPt: number, boxWin: number): number {
+  if (!text?.trim()) return 0
+  const charW = fontPt * 0.0072 // rough inch width per char at this size
+  const perLine = Math.max(8, Math.floor(boxWin / charW))
+  return Math.max(1, Math.ceil(text.length / perLine))
+}
+
 function bodyText(slide: PptxGenJS.Slide, c: DeckCtx, lines: string[], x: number, y: number, w: number, h: number, color: string, size = 18, align: 'left' | 'center' = 'left') {
   if (!lines?.length) return
   slide.addText(
@@ -61,12 +74,13 @@ function coverSlide(c: DeckCtx, spec: SlideSpec, v: SlideVisual, closing = false
   else { rect(c, s, 0, 0, W, H, c.t.bg); rect(c, s, 0, H - 2.6, W, 2.6, c.t.bgAlt, 18) }
   cornerMarks(c, s)
   const x = MARGIN + 0.3
+  const heading = spec.heading?.trim() || spec.subheading?.trim() || 'Sermon'
   if (spec.kicker) kicker(c, s, x, closing ? 4.1 : 4.35, 9, spec.kicker, c.accent)
   accentRule(c, s, x, closing ? 4.5 : 4.75, 0.95)
-  s.addText(spec.heading, { x, y: closing ? 4.7 : 4.95, w: W - x - MARGIN, h: 1.7, fontSize: sizeFor(spec.heading, [[24, 50], [44, 42], [70, 34]], 30), color: INK_LIGHT, fontFace: c.serif, bold: true })
-  if (spec.subheading) s.addText(spec.subheading, { x, y: closing ? 6.2 : 6.5, w: W - x - MARGIN, h: 0.5, fontSize: 16, color: 'E8E3D6', fontFace: c.sans, italic: true })
-  if (spec.reference && !closing) s.addText(spec.reference, { x, y: 6.95, w: 9, h: 0.4, fontSize: 14, color: c.accent, fontFace: c.serif, italic: true })
-  s.addText(dateLabel(), { x: W - MARGIN - 3.5, y: H - 0.5, w: 3.5, h: 0.35, fontSize: 11, color: 'CBD3E0', fontFace: c.sans, align: 'right' })
+  s.addText(heading, { x, y: closing ? 4.7 : 4.95, w: W - x - MARGIN, h: 1.5, fontSize: sizeFor(heading, [[20, 46], [40, 38], [70, 30]], 26), color: INK_LIGHT, fontFace: c.serif, bold: true, valign: 'top' })
+  if (spec.subheading && spec.subheading.trim() !== heading) s.addText(spec.subheading, { x, y: closing ? 6.2 : 6.45, w: W - x - MARGIN, h: 0.5, fontSize: 16, color: 'E8E3D6', fontFace: c.sans, italic: true })
+  if (spec.reference && !closing) s.addText(spec.reference, { x, y: spec.subheading ? 6.9 : 6.5, w: 9, h: 0.4, fontSize: 14, color: c.accent, fontFace: c.serif, italic: true })
+  s.addText(dateLabel(), { x: W - MARGIN - 3.5, y: H - 0.62, w: 3.5, h: 0.35, fontSize: 11, color: 'CBD3E0', fontFace: c.sans, align: 'right' })
   return s
 }
 
@@ -74,8 +88,9 @@ function fullBleedCaptionSlide(c: DeckCtx, spec: SlideSpec, v: SlideVisual): Ppt
   const s = newSlide(c, c.vt.bgDeep)
   if (v.main) fullBleed(c, s, v.main)
   else rect(c, s, 0, 0, W, H, c.t.bgAlt)
-  s.addText(spec.heading, { x: MARGIN + 0.3, y: 5.3, w: W - MARGIN * 2 - 0.6, h: 1.3, fontSize: sizeFor(spec.heading, [[40, 34], [80, 28]], 24), color: INK_LIGHT, fontFace: c.serif, italic: true, valign: 'bottom' })
-  if (spec.kicker) kicker(c, s, MARGIN + 0.3, 5.0, 8, spec.kicker, c.accent)
+  const phrase = spec.heading?.trim() || spec.subheading?.trim() || ''
+  if (spec.kicker) kicker(c, s, MARGIN + 0.3, 4.85, 8, spec.kicker, c.accent)
+  s.addText(phrase, { x: MARGIN + 0.3, y: 5.25, w: W - MARGIN * 2 - 0.6, h: 1.1, fontSize: sizeFor(phrase, [[40, 34], [80, 28]], 24), color: INK_LIGHT, fontFace: c.serif, italic: true, valign: 'top' })
   footer(c, s, spec.kicker || '')
   return s
 }
@@ -99,7 +114,7 @@ function splitSlide(c: DeckCtx, spec: SlideSpec, v: SlideVisual): PptxGenJS.Slid
   if (spec.kicker) kicker(c, s, tx, 1.35, tw, spec.kicker)
   if (heading) s.addText(heading, { x: tx, y: 1.75, w: tw, h: 1.5, fontSize: sizeFor(heading, [[36, 32], [64, 27]], 22), color: ink, fontFace: c.serif, bold: true, valign: 'top' })
   accentRule(c, s, tx, 3.25, 0.8)
-  bodyText(s, c, spec.body ?? [], tx, 3.55, tw, 3.2, muted, sizeFor((spec.body ?? []).join(' '), [[180, 19], [320, 17]], 15))
+  bodyText(s, c, spec.body ?? [], tx, 3.55, tw, 2.9, muted, sizeFor((spec.body ?? []).join(' '), [[180, 19], [320, 17]], 15))
   footer(c, s, spec.heading)
   return s
 }
@@ -131,9 +146,9 @@ function showcaseSlide(c: DeckCtx, spec: SlideSpec, v: SlideVisual): PptxGenJS.S
   if (v.bg) fullBleed(c, s, v.bg)
   const ink = onBgInk(c, v.bg)
   if (spec.kicker) kicker(c, s, MARGIN, 0.55, 9, spec.kicker, v.bg ? c.accent : c.accentText, 'center')
-  s.addText(spec.heading, { x: MARGIN, y: 0.9, w: W - MARGIN * 2, h: 0.85, fontSize: sizeFor(spec.heading, [[40, 28], [70, 24]], 20), color: ink, fontFace: c.serif, bold: true, align: 'center' })
-  const imgW = 8.6, imgH = 4.4
-  framedImage(c, s, v.main, (W - imgW) / 2, 2.0, imgW, imgH, spec.visual.spec || spec.subheading)
+  s.addText(spec.heading?.trim() || spec.subheading?.trim() || '', { x: MARGIN, y: 0.9, w: W - MARGIN * 2, h: 0.85, fontSize: sizeFor(spec.heading, [[35, 26], [70, 22]], 18), color: ink, fontFace: c.serif, bold: true, align: 'center', valign: 'top' })
+  const imgW = 8.4, imgH = 4.15
+  framedImage(c, s, v.main, (W - imgW) / 2, 1.95, imgW, imgH, spec.visual.spec || spec.subheading)
   footer(c, s, spec.heading)
   return s
 }
@@ -159,9 +174,10 @@ function bigStatSlide(c: DeckCtx, spec: SlideSpec, v: SlideVisual): PptxGenJS.Sl
   const muted = onImg ? 'D8D2C4' : mutedOn(c.t.bg)
   if (spec.kicker) kicker(c, s, MARGIN + 0.2, 1.6, 9, spec.kicker, onImg ? c.accent : c.accentText)
   const value = spec.stat?.value ?? spec.heading
-  s.addText(value, { x: MARGIN, y: 1.9, w: W - MARGIN * 2, h: 2.8, fontSize: sizeFor(value, [[3, 150], [6, 120], [14, 80], [28, 50]], 34), color: onImg ? c.accent : c.accentText, fontFace: c.serif, bold: true, valign: 'top' })
-  s.addText(spec.stat?.label ?? spec.subheading ?? spec.heading, { x: MARGIN + 0.2, y: 4.9, w: W - MARGIN * 2, h: 1.0, fontSize: 22, color: ink, fontFace: c.serif })
-  if (spec.body?.[0]) s.addText(spec.body[0], { x: MARGIN + 0.2, y: 5.9, w: W - MARGIN * 2, h: 0.8, fontSize: 16, color: muted, fontFace: c.sans })
+  const hasBody = !!spec.body?.[0]?.trim()
+  s.addText(value, { x: MARGIN, y: 2.0, w: W - MARGIN * 2, h: 2.7, fontSize: sizeFor(value, [[3, 150], [6, 120], [14, 80], [28, 50]], 34), color: onImg ? c.accent : c.accentText, fontFace: c.serif, bold: true, valign: 'top' })
+  s.addText(spec.stat?.label ?? spec.subheading ?? spec.heading, { x: MARGIN + 0.2, y: 4.85, w: W - MARGIN * 2, h: 0.9, fontSize: 22, color: ink, fontFace: c.serif, valign: 'top' })
+  if (hasBody) s.addText(spec.body![0], { x: MARGIN + 0.2, y: 5.6, w: W - MARGIN * 2, h: 0.7, fontSize: 16, color: muted, fontFace: c.sans, valign: 'top' })
   footer(c, s, spec.heading)
   return s
 }
@@ -172,27 +188,32 @@ function bentoSlide(c: DeckCtx, spec: SlideSpec, v: SlideVisual): PptxGenJS.Slid
   const ink = onBgInk(c, v.bg)
   if (spec.kicker) kicker(c, s, MARGIN, 0.6, 9, spec.kicker, v.bg ? c.accent : c.accentText)
   s.addText(spec.heading, { x: MARGIN, y: 0.95, w: W - MARGIN * 2, h: 0.8, fontSize: sizeFor(spec.heading, [[36, 30], [60, 26]], 22), color: ink, fontFace: c.serif, bold: true })
-  const items = (spec.body ?? []).slice(0, 5)
+  const items = (spec.body ?? []).slice(0, 5).map(stripLeadNum).filter(Boolean)
   // Tiles get a SOLID panel so they read over any background.
   const tileBg = c.t.mode === 'dark' ? mix(c.t.panel, '#000000', 0.1) : c.t.panel
   const tileInk = inkOn(tileBg)
   const tileMuted = mutedOn(tileBg)
-  const top = 2.1
+  const numCol = inkOn(tileBg) === INK_LIGHT ? c.accent : c.accentText
+  const top = 2.1, gridH = 4.5
   const heroW = colSpan(6)
   const rest = items.slice(1)
   if (items[0]) {
-    panel(c, s, colX(1), top, heroW, 4.5, tileBg, 0)
-    s.addText('01', { x: colX(1) + 0.3, y: top + 0.25, w: 1.5, h: 0.6, fontSize: 26, color: inkOn(tileBg) === INK_LIGHT ? c.accent : c.accentText, fontFace: c.serif, bold: true })
-    s.addText(items[0], { x: colX(1) + 0.35, y: top + 1.0, w: heroW - 0.7, h: 3.2, fontSize: sizeFor(items[0], [[80, 24], [160, 20]], 17), color: tileInk, fontFace: c.serif, valign: 'top', lineSpacingMultiple: 1.2 })
+    panel(c, s, colX(1), top, heroW, gridH, tileBg, 0)
+    // Center the number + item as a group inside the hero tile.
+    const nLines = estLines(items[0], 22, heroW - 0.7)
+    const gH = 0.8 + nLines * 0.42
+    const sy = top + Math.max(0.4, (gridH - gH) / 2)
+    s.addText('01', { x: colX(1) + 0.35, y: sy, w: 1.5, h: 0.6, fontSize: 26, color: numCol, fontFace: c.serif, bold: true })
+    s.addText(items[0], { x: colX(1) + 0.35, y: sy + 0.75, w: heroW - 0.7, h: gridH - (sy - top) - 0.75, fontSize: sizeFor(items[0], [[80, 24], [160, 20]], 17), color: tileInk, fontFace: c.serif, valign: 'top', lineSpacingMultiple: 1.2 })
   }
-  const rx = colX(7)
-  const rw = colSpan(6)
-  const rh = rest.length ? (4.5 - (rest.length - 1) * 0.18) / rest.length : 4.5
+  const rx = colX(7), rw = colSpan(6)
+  const rh = rest.length ? (gridH - (rest.length - 1) * 0.18) / rest.length : gridH
   rest.forEach((it, i) => {
     const y = top + i * (rh + 0.18)
     panel(c, s, rx, y, rw, rh, tileBg, 0)
-    s.addText(String(i + 2).padStart(2, '0'), { x: rx + 0.25, y: y + 0.15, w: 0.9, h: 0.5, fontSize: 16, color: inkOn(tileBg) === INK_LIGHT ? c.accent : c.accentText, fontFace: c.serif, bold: true })
-    s.addText(it, { x: rx + 1.15, y: y + 0.12, w: rw - 1.4, h: rh - 0.24, fontSize: sizeFor(it, [[70, 16], [130, 14]], 12.5), color: tileMuted, fontFace: c.sans, valign: 'middle', lineSpacingMultiple: 1.15 })
+    // Number and text both vertically centered in the tile, aligned as a row.
+    s.addText(String(i + 2).padStart(2, '0'), { x: rx + 0.3, y, w: 0.85, h: rh, fontSize: 16, color: numCol, fontFace: c.serif, bold: true, valign: 'middle' })
+    s.addText(it, { x: rx + 1.2, y, w: rw - 1.45, h: rh, fontSize: sizeFor(it, [[70, 16], [130, 14]], 12.5), color: tileMuted, fontFace: c.sans, valign: 'middle', lineSpacingMultiple: 1.15 })
   })
   footer(c, s, spec.heading)
   return s
@@ -206,13 +227,13 @@ function threeColSlide(c: DeckCtx, spec: SlideSpec, v: SlideVisual): PptxGenJS.S
   const acc = v.bg ? c.accent : c.accentText
   if (spec.kicker) kicker(c, s, MARGIN, 0.7, 9, spec.kicker, acc, 'center')
   s.addText(spec.heading, { x: MARGIN, y: 1.05, w: W - MARGIN * 2, h: 0.8, fontSize: sizeFor(spec.heading, [[40, 28], [70, 24]], 20), color: ink, fontFace: c.serif, bold: true, align: 'center' })
-  const cols = (spec.body ?? []).slice(0, 3)
+  const cols = (spec.body ?? []).slice(0, 3).map(stripLeadNum)
   const cw = colSpan(4)
   cols.forEach((text, i) => {
     const x = colX(1 + i * 4)
     s.addText(String(i + 1), { x, y: 2.5, w: cw, h: 0.9, fontSize: 40, color: acc, fontFace: c.serif, bold: true, align: 'center' })
     accentRule(c, s, x + cw / 2 - 0.3, 3.45, 0.6)
-    s.addText(text, { x, y: 3.7, w: cw, h: 2.8, fontSize: sizeFor(text, [[90, 18], [170, 16]], 14), color: muted, fontFace: c.sans, align: 'center', valign: 'top', lineSpacingMultiple: 1.25 })
+    s.addText(text, { x, y: 3.7, w: cw, h: 2.6, fontSize: sizeFor(text, [[90, 18], [170, 16]], 14), color: muted, fontFace: c.sans, align: 'center', valign: 'middle', lineSpacingMultiple: 1.25 })
   })
   footer(c, s, spec.heading)
   return s
@@ -234,10 +255,11 @@ function pullQuoteSlide(c: DeckCtx, spec: SlideSpec, v: SlideVisual): PptxGenJS.
   const s = newSlide(c, c.vt.bgDeep)
   if (v.bg) fullBleed(c, s, v.bg)
   else rect(c, s, 0, 0, W, H, c.t.bgAlt)
-  s.addText('“', { x: 0.5, y: 0.7, w: 3, h: 2.4, fontSize: 230, color: c.softAccent, fontFace: c.serif, bold: true })
-  const qlen = spec.heading.length
-  s.addText(spec.heading, { x: 0.9, y: 1.9, w: 11.5, h: 3.4, fontSize: sizeFor(spec.heading, [[60, 40], [120, 32], [200, 26]], 22), color: INK_LIGHT, fontFace: c.serif, italic: qlen < 120, valign: 'middle', lineSpacingMultiple: 1.3 })
-  if (spec.reference) s.addText(`— ${spec.reference}`, { x: 0.9, y: 5.7, w: 8, h: 0.5, fontSize: 16, color: c.accent, fontFace: c.sans })
+  s.addText('“', { x: 0.5, y: 0.55, w: 3, h: 2.2, fontSize: 220, color: c.softAccent, fontFace: c.serif, bold: true, valign: 'top' })
+  const quote = spec.heading?.trim() || spec.subheading?.trim() || ''
+  const qlen = quote.length
+  s.addText(quote, { x: 0.9, y: 2.0, w: 11.5, h: 3.0, fontSize: sizeFor(quote, [[60, 40], [120, 32], [200, 26]], 22), color: INK_LIGHT, fontFace: c.serif, italic: qlen < 120, valign: 'middle', lineSpacingMultiple: 1.3 })
+  if (spec.reference) s.addText(`— ${spec.reference}`, { x: 0.9, y: 5.35, w: 8, h: 0.45, fontSize: 15, color: c.accent, fontFace: c.sans })
   footer(c, s, spec.kicker || '')
   return s
 }
@@ -252,15 +274,24 @@ function twoUpSlide(c: DeckCtx, spec: SlideSpec, v: SlideVisual): PptxGenJS.Slid
   const lx = colX(1), rxx = colX(7)
   const lighter = mix(c.t.panel, '#ffffff', c.t.mode === 'dark' ? 0.16 : 0.55)
   const darker = c.t.mode === 'dark' ? c.t.bgAlt : mix(c.t.bgAlt, '#000000', 0.12)
-  panel(c, s, lx, 2.0, halfW, 4.5, lighter, 0)
-  panel(c, s, rxx, 2.0, halfW, 4.5, darker, 0)
-  rect(c, s, W / 2 - 0.01, 2.0, 0.02, 4.5, c.accent)
+  const panelY = 2.0, panelH = 4.5
+  panel(c, s, lx, panelY, halfW, panelH, lighter, 0)
+  panel(c, s, rxx, panelY, halfW, panelH, darker, 0)
+  rect(c, s, W / 2 - 0.01, panelY, 0.02, panelH, c.accent)
   const lines = spec.body ?? []
   const mid = Math.ceil(lines.length / 2)
-  s.addText(spec.subheading?.split('|')[0] ?? 'Before', { x: lx + 0.4, y: 2.25, w: halfW - 0.8, h: 0.6, fontSize: 20, color: inkOn(lighter), fontFace: c.serif, bold: true })
-  bodyText(s, c, lines.slice(0, mid), lx + 0.4, 3.0, halfW - 0.8, 3.2, mutedOn(lighter), 16)
-  s.addText(spec.subheading?.split('|')[1] ?? 'After', { x: rxx + 0.4, y: 2.25, w: halfW - 0.8, h: 0.6, fontSize: 20, color: inkOn(darker), fontFace: c.serif, bold: true })
-  bodyText(s, c, lines.slice(mid), rxx + 0.4, 3.0, halfW - 0.8, 3.2, mutedOn(darker), 16)
+
+  // Vertically center the header + body group inside each panel.
+  const col = (px: number, header: string, items: string[], bgHex: string) => {
+    const bodyStr = items.join('  ')
+    const nLines = estLines(bodyStr, 16, halfW - 0.8)
+    const groupH = 0.65 + nLines * 0.33
+    const startY = panelY + Math.max(0.35, (panelH - groupH) / 2)
+    s.addText(header, { x: px + 0.4, y: startY, w: halfW - 0.8, h: 0.55, fontSize: 20, color: inkOn(bgHex), fontFace: c.serif, bold: true })
+    bodyText(s, c, items, px + 0.4, startY + 0.7, halfW - 0.8, panelH - 1.2, mutedOn(bgHex), 16)
+  }
+  col(lx, spec.subheading?.split('|')[0] ?? 'Before', lines.slice(0, mid), lighter)
+  col(rxx, spec.subheading?.split('|')[1] ?? 'After', lines.slice(mid), darker)
   footer(c, s, spec.heading)
   return s
 }
@@ -269,11 +300,11 @@ function sectionDividerSlide(c: DeckCtx, spec: SlideSpec, v: SlideVisual, index:
   const s = newSlide(c, c.t.bgAlt)
   if (v.main) fullBleed(c, s, v.main) // heroLeft gradient baked
   const num = String(index).padStart(2, '0')
-  s.addText(num, { x: W - 5.6, y: 0.7, w: 5.4, h: 5.8, fontSize: 300, color: c.softAccent, fontFace: c.serif, bold: true, align: 'right' })
+  s.addText(num, { x: W - 4.9, y: 0.9, w: 4.7, h: 5.2, fontSize: 280, color: c.softAccent, fontFace: c.serif, bold: true, align: 'right' })
   rect(c, s, 0, 0, 0.18, H, c.accent)
   if (spec.kicker) kicker(c, s, MARGIN + 0.1, 2.7, 9, spec.kicker, c.accent)
   accentRule(c, s, MARGIN + 0.15, 3.15, 0.9)
-  s.addText(spec.heading, { x: MARGIN + 0.1, y: 3.4, w: 7.4, h: 1.8, fontSize: sizeFor(spec.heading, [[30, 40], [60, 32]], 26), color: INK_LIGHT, fontFace: c.serif, bold: true, valign: 'top' })
+  s.addText(spec.heading?.trim() || spec.kicker?.trim() || '', { x: MARGIN + 0.1, y: 3.4, w: 7.0, h: 1.8, fontSize: sizeFor(spec.heading, [[30, 40], [60, 32]], 26), color: INK_LIGHT, fontFace: c.serif, bold: true, valign: 'top' })
   footer(c, s, spec.heading)
   return s
 }
