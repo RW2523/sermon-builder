@@ -9,10 +9,11 @@ import { Progress } from '@/components/ui/progress'
 import { Textarea } from '@/components/ui/textarea'
 import {
   FileText, Presentation, Video, Share2, Loader2, ArrowLeft,
-  Copy, CheckCheck, Globe, Mic, MicOff, Download, Sparkles,
+  Copy, CheckCheck, Globe, Mic, MicOff, Download, Sparkles, Wand2,
   ExternalLink, BookOpen, Printer, ChevronDown, ChevronUp
 } from 'lucide-react'
 import type { Sermon, SermonDraft, SermonMedia, OutreachPost, ExportTemplateId, StructuredSermon } from '@/types'
+import type { SlidePlan } from '@/types/slides'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { EXPORT_THEMES, SLIDE_COUNT, isComplexScript, withHash } from '@/lib/sermon/templates'
@@ -44,6 +45,38 @@ export default function Stage4Export({
   // Design / format controls
   const [templateId, setTemplateId] = useState<ExportTemplateId>(sermon.export_template ?? 'navy_gold')
   const [slideCount, setSlideCount] = useState<number>(SLIDE_COUNT.default)
+  const [slidePlan, setSlidePlan] = useState<SlidePlan | null>(draft?.slide_plan ?? null)
+  const [planCount, setPlanCount] = useState<number>(draft?.slide_plan?.slides.length ?? 0)
+  const [planning, setPlanning] = useState(false)
+
+  // The deck "plan" decides each slide's layout + the right visual (scene,
+  // map, route, timeline, diagram, scripture art, or clean text). Generated
+  // once and reused; regenerate to honor a new slide count or for variety.
+  async function ensurePlan(force = false): Promise<SlidePlan | null> {
+    if (!force && slidePlan?.slides?.length) return slidePlan
+    setPlanning(true)
+    try {
+      const res = await fetch('/api/plan', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sermonId: sermon.id, themeId: templateId, targetSlideCount: slideCount }),
+      })
+      const json = await res.json()
+      if (!res.ok) { toast.error(json.error ?? 'Could not design the deck'); return null }
+      setSlidePlan(json.plan)
+      setPlanCount(json.plan?.slides?.length ?? 0)
+      return json.plan
+    } catch {
+      toast.error('Could not design the deck — check your connection')
+      return null
+    } finally {
+      setPlanning(false)
+    }
+  }
+
+  async function handleRedesign() {
+    const plan = await ensurePlan(true)
+    if (plan) toast.success(`Deck designed — ${plan.slides.length} slides, each with the right visual`)
+  }
 
   // The structured sermon is the export source of truth; fall back for legacy drafts
   function resolveStructured(): StructuredSermon | null {
@@ -109,9 +142,11 @@ export default function Stage4Export({
     if (!structured) { toast.error('Generate your sermon first'); return }
     setExportingPPT(true)
     try {
+      // Refresh the plan if the slide count changed since it was built.
+      const plan = await ensurePlan(planCount > 0 && Math.abs(planCount - slideCount) > 4)
       const { generatePPT } = await import('@/lib/exports/ppt')
       const blob = await generatePPT(sermon, structured, media, {
-        templateId, slideCount, speakerNotes: editableNotes || draft?.speaker_notes,
+        templateId, slideCount, speakerNotes: editableNotes || draft?.speaker_notes, slidePlan: plan,
       })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -389,6 +424,31 @@ export default function Stage4Export({
         </CardContent>
       </Card>
 
+      {/* Deck design — content-aware layout + visual planning */}
+      <Card className="border-amber-400/25 bg-gradient-to-br from-amber-500/10 to-orange-600/5 text-white">
+        <CardContent className="flex flex-col sm:flex-row sm:items-center gap-4 py-4">
+          <div className="flex-1 space-y-0.5">
+            <p className="text-white font-medium text-sm flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-amber-300" /> Designed deck layout
+            </p>
+            <p className="text-white/50 text-xs leading-relaxed">
+              Each slide gets a thoughtful layout and the right visual — a map for places, a route for journeys,
+              a timeline for sequences, a diagram for ideas, scripture art for verses, or clean type.
+              {planCount > 0 && <span className="text-amber-300"> · {planCount} slides planned</span>}
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            className="border-amber-400/40 text-amber-200 hover:bg-amber-400/10 gap-2 shrink-0"
+            onClick={handleRedesign}
+            disabled={planning || !draft}
+          >
+            {planning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+            {planning ? 'Designing…' : planCount > 0 ? 'Redesign Deck' : 'Design Deck'}
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Export row */}
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* PDF */}
@@ -419,14 +479,14 @@ export default function Stage4Export({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-white/40 text-xs">Slides with speaker notes embedded per section.</p>
+            <p className="text-white/40 text-xs">Designed slides with the right visual on each, speaker notes embedded.</p>
             <Button
               className="w-full bg-orange-700 hover:bg-orange-600 gap-2"
               onClick={handleExportPPT}
-              disabled={exportingPPT || !draft}
+              disabled={exportingPPT || planning || !draft}
             >
-              {exportingPPT ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-              {exportingPPT ? 'Generating…' : 'Download PPT'}
+              {exportingPPT || planning ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              {planning ? 'Designing deck…' : exportingPPT ? 'Generating…' : 'Download PPT'}
             </Button>
           </CardContent>
         </Card>

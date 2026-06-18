@@ -263,6 +263,10 @@ alter table sermon_drafts
 alter table sermon_drafts
   add column if not exists speaker_notes text;
 
+-- v3: content-aware deck plan (layouts + per-slide visual decisions)
+alter table sermon_drafts
+  add column if not exists slide_plan jsonb;
+
 -- Expand sermon_media.kind
 alter table sermon_media
   drop constraint if exists sermon_media_kind_check;

@@ -1,3 +1,5 @@
+import type { SlidePlan } from './slides'
+
 export type SermonStatus = 'draft' | 'polished' | 'multimedia' | 'exported' | 'published'
 export type SermonStage = 1 | 2 | 3 | 4
 export type InputKind = 'text' | 'dictation' | 'audio' | 'file' | 'bible_ref' | 'document'
@@ -92,6 +94,7 @@ export interface SermonDraft {
   sermon_id: string
   polished_html: string | null
   structured: StructuredSermon | null
+  slide_plan: SlidePlan | null
   template_type: TemplateType
   version: number
   speaker_notes: string | null
