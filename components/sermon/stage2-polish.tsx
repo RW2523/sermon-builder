@@ -18,6 +18,7 @@ import type { Sermon, SermonInput, SermonDraft, TemplateType } from '@/types'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { TONES, LANGUAGES } from '@/lib/sermon/templates'
+import { TEMPLATE_STRUCTURES } from '@/lib/sermon/templateStructures'
 import { htmlToStructured } from '@/lib/sermon/legacy'
 
 const TEMPLATES: { value: TemplateType; label: string; desc: string; icon: string; color: string }[] = [
@@ -269,13 +270,35 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
                 </button>
               ))}
             </div>
+
+            {/* Selected format's outline — the sections the content is mapped into */}
+            {TEMPLATE_STRUCTURES[selectedTemplate] && (
+              <div className="rounded-lg border border-white/10 bg-white/5 p-3 space-y-2">
+                <p className="text-white/70 text-xs">{TEMPLATE_STRUCTURES[selectedTemplate].summary}</p>
+                <div className="space-y-1.5">
+                  {TEMPLATE_STRUCTURES[selectedTemplate].sections.map((sec, i) => (
+                    <div key={sec.name} className="flex gap-2 text-[11px] leading-tight">
+                      <span className="text-amber-400 font-semibold shrink-0">{i + 1}.</span>
+                      <div>
+                        <span className="text-white/80 font-medium">{sec.name}</span>
+                        <span className="text-white/35"> — {sec.subtopics.join(' · ')}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-white/40 text-[10px] pt-1 border-t border-white/5">
+                  All of your raw content is re-mapped into these sections — nothing is dropped.
+                </p>
+              </div>
+            )}
+
             <Button
               className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
               onClick={handleApplyTemplate}
               disabled={applying}
             >
               {applying ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-              {applying ? 'Applying…' : `Apply ${TEMPLATES.find(t => t.value === selectedTemplate)?.label ?? ''} Format`}
+              {applying ? 'Reorganizing your content…' : `Apply ${TEMPLATES.find(t => t.value === selectedTemplate)?.label ?? ''} Format`}
             </Button>
           </CardContent>
         </Card>

@@ -7,6 +7,8 @@ export type LayoutName =
   | 'cover'             // full-bleed hero, lower-anchored title
   | 'fullBleedCaption'  // image fills slide, one short phrase
   | 'split'             // 60/40 image + text (imageSide L/R)
+  | 'figure'            // text + a FRAMED content image with caption
+  | 'showcase'          // a large framed image as the hero subject
   | 'scripture'         // featured verse, quiet + spacious
   | 'bigStat'           // one oversized number/word
   | 'bento'             // asymmetric tile grid
@@ -36,10 +38,13 @@ export type ImageSide = 'left' | 'right'
 
 export interface VisualSpec {
   type: VisualType
-  /** Human-readable intent (AI subject or diagram purpose). */
+  /** Human-readable intent (AI subject or diagram purpose). Doubles as a
+   *  caption for framed content images (figure/showcase). */
   spec?: string
   /** scene only — full cinematic prompt; must forbid text in the image. */
   prompt?: string
+  /** Resolved per-slide AI image URL (filled in after the plan is generated). */
+  imageUrl?: string
   highQuality?: boolean
   // Structured payloads — exactly the one matching `type` is populated:
   scripture?: { text: string; reference: string }

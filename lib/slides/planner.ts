@@ -11,7 +11,7 @@ Return ONLY a JSON object: { "meta": { "title": "...", "theme": "", "generatedFo
 
 Aim for about ${target} slides. Each SlideSpec:
 {
-  "layout": one of cover | fullBleedCaption | split | scripture | bigStat | bento | threeCol | timelineSlide | pullQuote | twoUp | sectionDivider | closing,
+  "layout": one of cover | fullBleedCaption | split | figure | showcase | scripture | bigStat | bento | threeCol | timelineSlide | pullQuote | twoUp | sectionDivider | closing,
   "role": cover | section | teaching | scripture | application | illustration | stat | comparison | framework | prayer | closing,
   "emphasis": normal | breath | climax,   // breath = a spacious pattern-break; climax = cover/divider/close
   "kicker": "<=4-word tracked eyebrow (optional)",
@@ -30,14 +30,18 @@ VISUAL RULES — choose AT MOST ONE visual per slide, by this PRIORITY (stop at 
 3. timeline — ordered events / eras / sequence ("first…then…finally", dated events, <=5). payload: "events":[{"label","date?","note?"}].
 4. diagram — a relationship / contrast / hierarchy / enumerated set ("three persons", "fruit of the Spirit", "law vs grace"). payload: "diagram":{"shape":hubSpoke|flow|compare|pyramid|list,"center?","nodes":[{"label","detail?"}],"leftHeader?","rightHeader?","leftItems?","rightItems?"}.
 5. scriptureArt — a single featured verse you want to display in full. payload: "scripture":{"text","reference"}.
-6. scene — a narrative moment / mood / setting needing NO accurate on-image words. payload: "prompt":"a cinematic, reverent scene of …, no text, no letters, no words", optional "highQuality":true (reserve for cover/divider/closing).
-7. none — theological exposition, exhortation, definitions, transitions: TEXT-ONLY. The MAJORITY of slides should be "none" or "scene".
+6. scene — a narrative moment / mood / setting / illustration needing NO accurate on-image words. payload: "prompt":"a cinematic, reverent scene of …, no text, no letters, no words", optional "highQuality":true (reserve for cover/divider/closing). USE SCENE GENEROUSLY for teaching and illustration slides — a relevant image makes the message vivid.
+7. none — theological exposition, exhortation, definitions, transitions: TEXT-ONLY.
 
-CRITICAL: maps, routes, timelines, diagrams, and scriptureArt are rendered programmatically with crisp text — ALWAYS prefer them over a scene when the slide carries place names, sequences, relationships, or a verse. NEVER ask a scene image to contain readable words.
+Roughly HALF the slides should carry a scene image (as a background on cover/divider/fullBleedCaption, or as a FRAMED content image on figure/showcase/split). Use programmatic visuals (map/route/timeline/diagram/scriptureArt) wherever the content has places, sequences, relationships, or a featured verse — they render with crisp text. NEVER ask a scene image to contain readable words.
 
 LAYOUT GUIDANCE — rotate layouts so no two consecutive slides share one; match layout to content:
 - cover: opening title (climax). closing: benediction/sending (climax). sectionDivider: between major points.
-- scripture: a featured verse. split: a teaching point + one supporting visual (alternate imageSide). threeCol: exactly 3 parallel points. twoUp: a contrast. bigStat: one striking number/word. bento: an enumerated set / applications. timelineSlide: a sequence. pullQuote: a non-scripture quote. fullBleedCaption: an emotional 'breath' beat.
+- figure: a teaching point WITH a relevant framed illustration image beside the text (visual:"scene"). PREFER this over plain split when an image would help the point land — the image sits framed as content, not just a backdrop.
+- showcase: one powerful idea with a LARGE framed image as the hero subject + a short caption (visual:"scene"). Great for a vivid illustration or a pivotal scene.
+- split: a teaching point + one supporting visual edge-to-edge (alternate imageSide).
+- scripture: a featured verse. threeCol: exactly 3 parallel points. twoUp: a contrast. bigStat: one striking number/word. bento: an enumerated set / applications. timelineSlide: a sequence. pullQuote: a non-scripture quote. fullBleedCaption: an emotional 'breath' beat.
+For figure/showcase/split with an image, set the slide's "visual.type":"scene" with a "prompt" AND a short "spec" (used as the image caption).
 
 Keep headings <=10 words. Keep body lines short. Be restrained, reverent, and varied.
 

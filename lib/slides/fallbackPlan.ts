@@ -39,10 +39,10 @@ export function buildFallbackPlan(s: StructuredSermon, themeId: string): SlidePl
   if (introParas.length) {
     const p = introParas
     slides.push({
-      layout: 'split', role: 'teaching', emphasis: 'normal', imageSide: 'right',
+      layout: 'figure', role: 'teaching', emphasis: 'normal', imageSide: 'right',
       kicker: 'Introduction', heading: firstSentence(p[0] ?? s.introduction, 60),
       body: p.slice(0, 3).map((x) => firstSentence(x, 160)),
-      visual: { type: 'scene', spec: `${s.theme} introduction mood` },
+      visual: { type: 'scene', spec: 'Setting the scene', prompt: `A reverent scene evoking ${s.theme || s.title}` },
     })
   }
 
@@ -83,10 +83,10 @@ export function buildFallbackPlan(s: StructuredSermon, themeId: string): SlidePl
 
   if (s.conclusion) {
     slides.push({
-      layout: 'split', role: 'teaching', emphasis: 'normal', imageSide: 'left',
+      layout: 'figure', role: 'teaching', emphasis: 'normal', imageSide: 'left',
       kicker: 'Conclusion', heading: firstSentence(s.conclusion, 56),
       body: paras(s.conclusion).slice(0, 2).map((x) => firstSentence(x, 170)),
-      visual: { type: 'scene', spec: `${s.theme} resolution` },
+      visual: { type: 'scene', spec: 'A closing reflection', prompt: `A peaceful resolution scene evoking ${s.theme || s.title}` },
     })
   }
 

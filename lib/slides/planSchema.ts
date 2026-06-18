@@ -7,7 +7,7 @@ import type { SlidePlan } from '@/types/slides'
 
 const visualType = z.enum(['none', 'scene', 'scriptureArt', 'map', 'route', 'timeline', 'diagram'])
 const layoutName = z.enum([
-  'cover', 'fullBleedCaption', 'split', 'scripture', 'bigStat', 'bento',
+  'cover', 'fullBleedCaption', 'split', 'figure', 'showcase', 'scripture', 'bigStat', 'bento',
   'threeCol', 'timelineSlide', 'pullQuote', 'twoUp', 'sectionDivider', 'closing',
 ])
 const role = z.enum([

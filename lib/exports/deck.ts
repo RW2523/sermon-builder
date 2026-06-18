@@ -112,6 +112,18 @@ export function coverImage(c: DeckCtx, slide: PptxGenJS.Slide, data: string, anc
   }
 }
 
+/** A FRAMED content image: soft drop shadow, the photo, then a thin gold-tinted
+ *  hairline frame — so the image reads as a deliberate object, not a backdrop.
+ *  Caption (optional) sits just beneath. */
+export function framedImage(c: DeckCtx, slide: PptxGenJS.Slide, data: string, x: number, y: number, w: number, h: number, caption?: string) {
+  rect(c, slide, x + 0.07, y + 0.09, w, h, c.t.mode === 'dark' ? '000000' : '6B5E48', 64) // shadow
+  slide.addImage({ data, x, y, w, h, sizing: { type: 'cover', w, h } })
+  slide.addShape(c.pptx.ShapeType.rect, { x, y, w, h, fill: { color: c.t.bg, transparency: 100 }, line: { color: c.softAccent, width: 1.25 } })
+  if (caption?.trim()) {
+    slide.addText(caption.trim(), { x, y: y + h + 0.08, w, h: 0.45, fontSize: 11.5, italic: true, color: c.t.mode === 'dark' ? 'C4CBD8' : '6B5E48', fontFace: c.serif, align: 'center' })
+  }
+}
+
 /** Rounded panel behind a text block (imagePanelHybrid recipe). */
 export function panel(c: DeckCtx, slide: PptxGenJS.Slide, x: number, y: number, w: number, h: number, color?: string, transparency = 14) {
   slide.addShape(c.pptx.ShapeType.roundRect, { x, y, w, h, rectRadius: 0.12, fill: { color: color ?? c.t.panel, transparency }, line: { type: 'none' } })

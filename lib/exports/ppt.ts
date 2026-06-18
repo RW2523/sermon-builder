@@ -50,10 +50,18 @@ export async function generatePPT(
   const nextScene = (): string | null => (scenePool.length ? scenePool[sceneIdx++ % scenePool.length] : null)
 
   // ── Resolve each slide's visual in parallel ──
+  // Scene slides prefer their own generated image (visual.imageUrl); otherwise
+  // they cycle the shared media pool so the deck still has imagery.
   const visuals = await Promise.all(
     plan.slides.map(async (spec) => {
       if (isProgrammatic(spec.visual.type)) return await renderProgrammaticVisual(spec.visual, vt)
-      if (spec.visual.type === 'scene') return nextScene()
+      if (spec.visual.type === 'scene') {
+        if (spec.visual.imageUrl) {
+          const prepped = await prepareImage(spec.visual.imageUrl)
+          if (prepped) return prepped.dataUrl
+        }
+        return nextScene()
+      }
       return null
     })
   )

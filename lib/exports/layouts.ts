@@ -5,7 +5,7 @@ import { mix } from '@/lib/visuals/theme'
 import {
   W, H, MARGIN, INK_LIGHT, colX, colSpan,
   type DeckCtx, sizeFor, inkOn, mutedOn,
-  rect, coverImage, panel, kicker, accentRule, footer, cornerMarks, newSlide,
+  rect, coverImage, framedImage, panel, kicker, accentRule, footer, cornerMarks, newSlide,
 } from './deck'
 
 // One renderer per named layout. Each composes a slide from the deck
@@ -91,6 +91,40 @@ function splitSlide(c: DeckCtx, spec: SlideSpec, visual: string | null): PptxGen
   if (heading) s.addText(heading, { x: tx, y: 1.75, w: tw, h: 1.5, fontSize: sizeFor(heading, [[36, 32], [64, 27]], 22), color: ink, fontFace: c.serif, bold: true, valign: 'top' })
   accentRule(c, s, tx, 3.25, 0.8)
   bodyText(s, c, spec.body ?? [], tx, 3.55, tw, 3.2, muted, sizeFor((spec.body ?? []).join(' '), [[180, 19], [320, 17]], 15))
+  footer(c, s, spec.heading)
+  return s
+}
+
+function figureSlide(c: DeckCtx, spec: SlideSpec, visual: string | null): PptxGenJS.Slide {
+  // Text on one side, a FRAMED content image (with caption) on the other.
+  if (!visual) return splitSlide(c, spec, null)
+  const s = newSlide(c)
+  const ink = inkOn(c.t.bg)
+  const muted = mutedOn(c.t.bg)
+  const right = spec.imageSide !== 'left'
+  const imgW = 5.4, imgH = 4.3
+  const imgX = right ? W - MARGIN - imgW : MARGIN
+  const imgY = (H - imgH) / 2 - 0.2
+  framedImage(c, s, visual, imgX, imgY, imgW, imgH, spec.visual.spec)
+  const tx = right ? MARGIN : imgX + imgW + 0.7
+  const tw = W - imgW - MARGIN * 2 - 0.7
+  if (spec.kicker) kicker(c, s, tx, 1.5, tw, spec.kicker)
+  s.addText(spec.heading, { x: tx, y: 1.9, w: tw, h: 1.5, fontSize: sizeFor(spec.heading, [[36, 30], [64, 25]], 21), color: ink, fontFace: c.serif, bold: true, valign: 'top' })
+  accentRule(c, s, tx, 3.35, 0.8)
+  bodyText(s, c, spec.body ?? [], tx, 3.65, tw, 2.9, muted, sizeFor((spec.body ?? []).join(' '), [[160, 18], [300, 16]], 14))
+  footer(c, s, spec.heading)
+  return s
+}
+
+function showcaseSlide(c: DeckCtx, spec: SlideSpec, visual: string | null): PptxGenJS.Slide {
+  // A large framed image as the hero subject, kicker+heading above, caption below.
+  if (!visual) return fullBleedCaptionSlide(c, spec, null)
+  const s = newSlide(c)
+  const ink = inkOn(c.t.bg)
+  if (spec.kicker) kicker(c, s, MARGIN, 0.55, 9, spec.kicker, c.accentText, 'center')
+  s.addText(spec.heading, { x: MARGIN, y: 0.9, w: W - MARGIN * 2, h: 0.85, fontSize: sizeFor(spec.heading, [[40, 28], [70, 24]], 20), color: ink, fontFace: c.serif, bold: true, align: 'center' })
+  const imgW = 8.6, imgH = 4.4
+  framedImage(c, s, visual, (W - imgW) / 2, 2.0, imgW, imgH, spec.visual.spec || spec.subheading)
   footer(c, s, spec.heading)
   return s
 }
@@ -243,6 +277,8 @@ export function renderSlide(c: DeckCtx, spec: SlideSpec, visual: string | null, 
     case 'cover': return coverSlide(c, spec, visual)
     case 'closing': return coverSlide(c, spec, visual, true)
     case 'fullBleedCaption': return fullBleedCaptionSlide(c, spec, visual)
+    case 'figure': return figureSlide(c, spec, visual)
+    case 'showcase': return showcaseSlide(c, spec, visual)
     case 'scripture': return scriptureSlide(c, spec, visual)
     case 'bigStat': return bigStatSlide(c, spec, visual)
     case 'bento': return bentoSlide(c, spec, visual)
