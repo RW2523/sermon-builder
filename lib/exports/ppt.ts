@@ -4,10 +4,11 @@ import type { SlidePlan } from '@/types/slides'
 import { getTheme } from '@/lib/sermon/templates'
 import { getVisualTheme } from '@/lib/visuals/theme'
 import { renderProgrammaticVisual, isProgrammatic } from '@/lib/visuals'
-import { prepareImage } from '@/lib/exports/image'
+import { prepareImage, prepareScene } from '@/lib/exports/image'
+import { mix } from '@/lib/visuals/theme'
 import { buildFallbackPlan } from '@/lib/slides/fallbackPlan'
 import { createDeck } from '@/lib/exports/deck'
-import { renderSlide } from '@/lib/exports/layouts'
+import { renderSlide, type SlideVisual } from '@/lib/exports/layouts'
 
 interface ExportOpts {
   templateId?: ExportTemplateId
@@ -41,28 +42,46 @@ export async function generatePPT(
   pptx.author = 'SabAi Sermon'
   pptx.title = structured.title || sermon.title
 
-  // ── Scene image pool (compressed AI images) ──
-  const prepared = await Promise.all(
-    media.map(async (m) => (m.public_url ? (await prepareImage(m.public_url))?.dataUrl ?? null : null))
-  )
-  const scenePool = prepared.filter(Boolean) as string[]
-  let sceneIdx = 0
-  const nextScene = (): string | null => (scenePool.length ? scenePool[sceneIdx++ % scenePool.length] : null)
+  // ── Raw scene image pool (URLs) for backgrounds ──
+  const rawPool = media.map((m) => m.public_url).filter(Boolean) as string[]
+  let poolIdx = 0
+  const nextRaw = (): string | null => (rawPool.length ? rawPool[poolIdx++ % rawPool.length] : null)
 
-  // ── Resolve each slide's visual in parallel ──
-  // Scene slides prefer their own generated image (visual.imageUrl); otherwise
-  // they cycle the shared media pool so the deck still has imagery.
-  const visuals = await Promise.all(
-    plan.slides.map(async (spec) => {
-      if (isProgrammatic(spec.visual.type)) return await renderProgrammaticVisual(spec.visual, vt)
-      if (spec.visual.type === 'scene') {
-        if (spec.visual.imageUrl) {
-          const prepped = await prepareImage(spec.visual.imageUrl)
-          if (prepped) return prepped.dataUrl
-        }
-        return nextScene()
+  // Dark colour used to bake gradients/washes so off-white text always reads —
+  // theme's own deep tone on dark themes, a warm near-black on light themes.
+  const scrimDark = t.mode === 'dark' ? `#${t.bgAlt}` : mix(t.text, '#000000', 0.25)
+  const crisp = async (url: string) => (await prepareImage(url))?.dataUrl ?? null
+
+  // ── Resolve each slide into { main, bg }: smooth baked gradients instead of
+  // hard scrim rects, and a background image on (almost) every slide. ──
+  const visuals: SlideVisual[] = await Promise.all(
+    plan.slides.map(async (spec): Promise<SlideVisual> => {
+      if (isProgrammatic(spec.visual.type)) {
+        return { main: await renderProgrammaticVisual(spec.visual, vt), bg: null }
       }
-      return null
+      const layout = spec.layout
+      if (spec.visual.type === 'scene') {
+        const url = spec.visual.imageUrl || nextRaw()
+        if (!url) return { main: null, bg: null }
+        if (layout === 'cover' || layout === 'closing' || layout === 'fullBleedCaption') {
+          return { main: await prepareScene(url, 'heroBottom', scrimDark), bg: null }
+        }
+        if (layout === 'sectionDivider') {
+          return { main: await prepareScene(url, 'heroLeft', scrimDark), bg: null }
+        }
+        if (layout === 'bigStat') {
+          return { main: await prepareScene(url, 'wash', scrimDark), bg: null }
+        }
+        if (layout === 'figure' || layout === 'showcase' || layout === 'split') {
+          const [fg, bg] = await Promise.all([crisp(url), prepareScene(url, 'wash', scrimDark)])
+          return { main: fg, bg }
+        }
+        return { main: null, bg: await prepareScene(url, 'wash', scrimDark) }
+      }
+      // Text-only slides get a subtle washed background from the image pool so
+      // every slide carries imagery (panels/text sit on top, fully readable).
+      const bgUrl = nextRaw()
+      return { main: null, bg: bgUrl ? await prepareScene(bgUrl, 'wash', scrimDark) : null }
     })
   )
 

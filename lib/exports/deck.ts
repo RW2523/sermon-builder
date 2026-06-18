@@ -112,6 +112,12 @@ export function coverImage(c: DeckCtx, slide: PptxGenJS.Slide, data: string, anc
   }
 }
 
+/** Place a pre-prepared image full-bleed (its gradient/wash is already baked in
+ *  — no scrim rect, so there are no hard seams). */
+export function fullBleed(c: DeckCtx, slide: PptxGenJS.Slide, data: string) {
+  slide.addImage({ data, x: 0, y: 0, w: W, h: H, sizing: { type: 'cover', w: W, h: H } })
+}
+
 /** A FRAMED content image: soft drop shadow, the photo, then a thin gold-tinted
  *  hairline frame — so the image reads as a deliberate object, not a backdrop.
  *  Caption (optional) sits just beneath. */
