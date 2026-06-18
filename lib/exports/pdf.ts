@@ -1,26 +1,18 @@
 import jsPDF from 'jspdf'
 import type { Sermon, StructuredSermon, SermonMedia, ExportTemplateId } from '@/types'
-import type { SlidePlan } from '@/types/slides'
-import { getTheme } from '@/lib/sermon/templates'
-import { getVisualTheme } from '@/lib/visuals/theme'
-import { renderProgrammaticVisual, isProgrammatic } from '@/lib/visuals'
-import { svgToDataUrl } from '@/lib/visuals/svg'
+import { getTheme, withHash, contrastText } from '@/lib/sermon/templates'
 import { prepareImage } from '@/lib/exports/image'
-import { buildFallbackPlan } from '@/lib/slides/fallbackPlan'
-import { renderSlideSvg } from '@/lib/exports/slide-svg'
 
 interface ExportOpts {
   templateId?: ExportTemplateId
-  slidePlan?: SlidePlan | null
+  formatLabel?: string
 }
 
-// 16:9 landscape page (mm). Each slide is composited as an SVG (slide-svg.ts),
-// rasterized at high DPI, and placed full-bleed — so the PDF deck reads
-// identically to the PowerPoint deck built from the same plan. (The selectable
-// text manuscript lives in the separate Print View.)
-const PAGE_W = 320
-const PAGE_H = 180
-
+// A polished A4 sermon MANUSCRIPT (portrait document) rendered from the
+// polished, structured content. The section headings are the chosen format's
+// sections, so the document reflects the template. Justified serif body, a
+// refined title block, a hero image, interleaved visuals, a themed scripture
+// panel, running headers, and page numbers — a print-ready sermon sheet.
 export async function generatePDF(
   sermon: Sermon,
   structured: StructuredSermon,
@@ -28,53 +20,250 @@ export async function generatePDF(
   opts: ExportOpts = {}
 ): Promise<Blob> {
   const t = getTheme(opts.templateId ?? sermon.export_template)
-  const vt = getVisualTheme(t)
-  const themeId = (opts.templateId ?? sermon.export_template) as string
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const pageW = doc.internal.pageSize.getWidth()
+  const pageH = doc.internal.pageSize.getHeight()
+  const margin = 20
+  const contentW = pageW - margin * 2
+  const bottom = pageH - 18
+
+  const accent = withHash(t.accent)
+  const heading = withHash(t.mode === 'light' ? t.heading : '1B2A4A')
+  const body = withHash(t.mode === 'light' ? t.text : '23272E')
+  const muted = withHash(t.textMuted)
   const title = structured.title || sermon.title
 
-  const plan: SlidePlan = opts.slidePlan?.slides?.length
-    ? opts.slidePlan
-    : buildFallbackPlan(structured, themeId)
+  let y = 0
+  let page = 1
 
-  // Scene image pool (compressed) — fallback when a slide has no bespoke image.
-  const prepared = await Promise.all(
-    media.map(async (m) => (m.public_url ? (await prepareImage(m.public_url))?.dataUrl ?? null : null))
-  )
-  const scenePool = prepared.filter(Boolean) as string[]
-  let sceneIdx = 0
-  const nextScene = (): string | null => (scenePool.length ? scenePool[sceneIdx++ % scenePool.length] : null)
-
-  // Resolve each slide's visual to a data URL (same logic as the PPT engine).
-  const visuals = await Promise.all(
-    plan.slides.map(async (spec) => {
-      if (isProgrammatic(spec.visual.type)) return await renderProgrammaticVisual(spec.visual, vt)
-      if (spec.visual.type === 'scene') {
-        if (spec.visual.imageUrl) {
-          const prepped = await prepareImage(spec.visual.imageUrl)
-          if (prepped) return prepped.dataUrl
-        }
-        return nextScene()
-      }
-      return null
-    })
-  )
-
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [PAGE_W, PAGE_H] })
-  doc.setProperties({ title, author: 'SabAi Sermon' })
-
-  for (let i = 0; i < plan.slides.length; i++) {
-    const spec = plan.slides[i]
-    const svg = renderSlideSvg(spec, t, {
-      visual: visuals[i],
-      programmatic: isProgrammatic(spec.visual.type),
-      slideNo: i + 1,
-      title,
-    })
-    // Rasterize at high DPI for crisp text/edges in print.
-    const png = await svgToDataUrl(svg, 1920, 1080, t.bg)
-    if (i > 0) doc.addPage([PAGE_W, PAGE_H], 'landscape')
-    if (png) doc.addImage(png, 'JPEG', 0, 0, PAGE_W, PAGE_H, undefined, 'FAST')
+  function runningHeader() {
+    // pages 2+ get a discreet running header
+    doc.setFont('times', 'italic')
+    doc.setFontSize(8.5)
+    doc.setTextColor(muted)
+    doc.text(title, margin, 12, { maxWidth: contentW * 0.7 })
+    doc.setDrawColor(accent)
+    doc.setLineWidth(0.3)
+    doc.line(margin, 14, pageW - margin, 14)
   }
 
+  function footer(pageNum: number) {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(muted)
+    doc.text('SabAi Sermon', margin, pageH - 10)
+    doc.text(`Page ${pageNum}`, pageW - margin, pageH - 10, { align: 'right' })
+  }
+
+  function newPage() {
+    footer(page)
+    doc.addPage()
+    page += 1
+    runningHeader()
+    y = 22
+  }
+
+  function checkPage(needed = 10) {
+    if (y + needed > bottom) newPage()
+  }
+
+  // ── Title block ──
+  doc.setFillColor(accent)
+  doc.rect(0, 0, pageW, 5, 'F')
+  y = margin + 6
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10.5)
+  doc.setTextColor(accent)
+  doc.setCharSpace(0.8)
+  doc.text((sermon.tone || 'Sermon').toUpperCase(), margin, y)
+  doc.setCharSpace(0)
+  y += 9
+
+  doc.setFont('times', 'bold')
+  doc.setFontSize(28)
+  doc.setTextColor(heading)
+  const titleLines = doc.splitTextToSize(title, contentW)
+  doc.text(titleLines, margin, y)
+  y += titleLines.length * 11 + 1
+
+  if (structured.theme) {
+    doc.setFont('times', 'italic')
+    doc.setFontSize(12.5)
+    doc.setTextColor(muted)
+    const themeLines = doc.splitTextToSize(structured.theme, contentW)
+    doc.text(themeLines, margin, y)
+    y += themeLines.length * 6.2 + 1
+  }
+
+  // meta row: scripture ref · format · date
+  const metaParts: string[] = []
+  if (sermon.scripture_ref) metaParts.push(sermon.scripture_ref)
+  if (opts.formatLabel) metaParts.push(opts.formatLabel)
+  metaParts.push(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(muted)
+  doc.text(metaParts.join('   ·   '), margin, y + 2)
+  y += 6
+  doc.setDrawColor(accent)
+  doc.setLineWidth(0.6)
+  doc.line(margin, y, pageW - margin, y)
+  y += 8
+
+  // ── Helpers ──
+  function sectionHeading(label: string) {
+    checkPage(16)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(accent)
+    doc.setCharSpace(0.6)
+    doc.text(label.toUpperCase(), margin, y)
+    doc.setCharSpace(0)
+    doc.setDrawColor(accent)
+    doc.setLineWidth(0.3)
+    doc.line(margin, y + 1.6, margin + 16, y + 1.6)
+    y += 7
+  }
+
+  function paragraph(text: string, size = 10.8) {
+    doc.setFont('times', 'normal')
+    doc.setFontSize(size)
+    doc.setTextColor(body)
+    const lh = size * 0.5
+    for (const para of text.split(/\n{2,}/).map((p) => p.trim()).filter(Boolean)) {
+      const lines = doc.splitTextToSize(para, contentW) as string[]
+      lines.forEach((line, li) => {
+        checkPage(lh + 2)
+        // justify every line except the last of the paragraph
+        if (li < lines.length - 1) doc.text(line, margin, y, { align: 'justify', maxWidth: contentW })
+        else doc.text(line, margin, y)
+        y += lh
+      })
+      y += 3
+    }
+  }
+
+  // White-paper scripture panel: always light tint, contrast-safe dark text.
+  const scripturePanel = t.mode === 'light' ? t.panel : 'F2ECDE'
+  const scriptureText = withHash(contrastText(scripturePanel))
+
+  function scriptureBlock(text: string) {
+    const lines = doc.splitTextToSize(text, contentW - 10) as string[]
+    const blockH = lines.length * 5.4 + 7
+    checkPage(blockH)
+    doc.setFillColor(withHash(scripturePanel))
+    doc.rect(margin, y - 1, contentW, blockH, 'F')
+    doc.setFillColor(accent)
+    doc.rect(margin, y - 1, 1.8, blockH, 'F')
+    doc.setFont('times', 'italic')
+    doc.setFontSize(10.5)
+    doc.setTextColor(scriptureText)
+    let yy = y + 4.5
+    for (const line of lines) { doc.text(line, margin + 7, yy); yy += 5.4 }
+    y += blockH + 5
+  }
+
+  // ── Preload + compress media ──
+  const prepared = await Promise.all(
+    media.map(async (m) => {
+      if (!m.public_url) return null
+      const p = await prepareImage(m.public_url)
+      return p ? { data: p.dataUrl, w: p.w, h: p.h, caption: m.caption } : null
+    })
+  )
+  const imgData = prepared.filter(Boolean) as { data: string; w: number; h: number; caption: string | null }[]
+
+  function placeImage(img: { data: string; w: number; h: number; caption: string | null }, widthMm: number) {
+    const imgW = Math.min(widthMm, contentW)
+    const imgH = (img.h / img.w) * imgW
+    checkPage(imgH + (img.caption ? 9 : 4))
+    const x = margin + (contentW - imgW) / 2
+    doc.addImage(img.data, 'JPEG', x, y, imgW, imgH)
+    // thin frame
+    doc.setDrawColor(accent)
+    doc.setLineWidth(0.2)
+    doc.rect(x, y, imgW, imgH)
+    y += imgH + 3
+    if (img.caption) {
+      doc.setFont('times', 'italic')
+      doc.setFontSize(8.5)
+      doc.setTextColor(muted)
+      for (const line of doc.splitTextToSize(img.caption, imgW) as string[]) { checkPage(5); doc.text(line, pageW / 2, y, { align: 'center' }); y += 4 }
+      y += 2
+    }
+  }
+
+  // ── Hero image + key scripture ──
+  if (imgData[0]) placeImage(imgData[0], contentW * 0.82)
+  if (structured.scripture) scriptureBlock(structured.scripture)
+
+  // ── Introduction ──
+  if (structured.introduction) {
+    sectionHeading('Introduction')
+    paragraph(structured.introduction)
+    y += 2
+  }
+
+  // ── Sections (the chosen format's sections) ──
+  structured.main_points.forEach((pt, i) => {
+    checkPage(20)
+    doc.setFont('times', 'bold')
+    doc.setFontSize(15)
+    doc.setTextColor(accent)
+    doc.text(`${i + 1}.`, margin, y)
+    doc.setTextColor(heading)
+    const headLines = doc.splitTextToSize(pt.heading || `Section ${i + 1}`, contentW - 9) as string[]
+    headLines.forEach((line, li) => { checkPage(8); doc.text(line, margin + 9, y); if (li < headLines.length - 1) y += 7 })
+    y += 8
+    if (pt.scripture) scriptureBlock(pt.scripture)
+    if (pt.body) paragraph(pt.body)
+    const img = imgData[i + 1]
+    if (img) placeImage(img, contentW * 0.6)
+    y += 3
+  })
+
+  // ── Application ──
+  if (structured.applications.length) {
+    sectionHeading('Application')
+    doc.setFont('times', 'normal')
+    doc.setFontSize(10.8)
+    structured.applications.forEach((a) => {
+      const lines = doc.splitTextToSize(a, contentW - 7) as string[]
+      const blockH = lines.length * 5.4
+      checkPage(blockH + 2)
+      doc.setFillColor(accent)
+      doc.circle(margin + 1.4, y - 1.4, 1, 'F')
+      doc.setTextColor(body)
+      lines.forEach((line, li) => { checkPage(6); doc.text(line, margin + 6, y); if (li < lines.length - 1) y += 5.4 })
+      y += 6.4
+    })
+    y += 2
+  }
+
+  // ── Conclusion ──
+  if (structured.conclusion) {
+    sectionHeading('Conclusion')
+    paragraph(structured.conclusion)
+    y += 2
+  }
+
+  // ── Closing prayer ──
+  if (structured.prayer) {
+    checkPage(24)
+    doc.setDrawColor(accent)
+    doc.setLineWidth(0.4)
+    doc.line(margin, y, pageW - margin, y)
+    y += 7
+    sectionHeading('Closing Prayer')
+    doc.setFont('times', 'italic')
+    doc.setFontSize(10.8)
+    doc.setTextColor(body)
+    for (const line of doc.splitTextToSize(structured.prayer, contentW) as string[]) {
+      checkPage(6); doc.text(line, margin, y); y += 5.6
+    }
+  }
+
+  footer(page)
   return doc.output('blob')
 }

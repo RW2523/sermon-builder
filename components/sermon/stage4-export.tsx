@@ -16,7 +16,8 @@ import type { Sermon, SermonDraft, SermonMedia, OutreachPost, ExportTemplateId, 
 import type { SlidePlan } from '@/types/slides'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
-import { EXPORT_THEMES, SLIDE_COUNT, withHash } from '@/lib/sermon/templates'
+import { EXPORT_THEMES, SLIDE_COUNT, withHash, isComplexScript } from '@/lib/sermon/templates'
+import { TEMPLATE_STRUCTURES } from '@/lib/sermon/templateStructures'
 import { htmlToStructured } from '@/lib/sermon/legacy'
 
 interface Props {
@@ -112,13 +113,19 @@ export default function Stage4Export({
   async function handleExportPDF() {
     const structured = resolveStructured()
     if (!structured) { toast.error('Generate your sermon first'); return }
+    // The A4 manuscript uses jsPDF's core fonts, which can't shape complex
+    // scripts (Hindi/Tamil/…) — route those to the print view to save as PDF.
+    if (isComplexScript(sermon.language)) {
+      const { openPrintView } = await import('@/lib/exports/print')
+      openPrintView(sermon, structured, media, { templateId, speakerNotes: editableNotes || draft?.speaker_notes, language: sermon.language })
+      toast.info(`Opened print view for ${sermon.language} — use “Save as PDF” in the print dialog`)
+      return
+    }
     setExportingPDF(true)
     try {
-      // The designed PDF deck renders text as SVG (rasterized by the browser),
-      // so it shapes complex scripts (Hindi/Tamil/…) faithfully — no redirect.
-      const plan = await ensurePlan(planCount > 0 && Math.abs(planCount - slideCount) > 4)
+      const formatLabel = draft?.template_type ? TEMPLATE_STRUCTURES[draft.template_type]?.label : undefined
       const { generatePDF } = await import('@/lib/exports/pdf')
-      const blob = await generatePDF(sermon, structured, media, { templateId, slidePlan: plan })
+      const blob = await generatePDF(sermon, structured, media, { templateId, formatLabel })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url; a.download = `${sermon.title}.pdf`; a.click()
@@ -454,7 +461,7 @@ export default function Stage4Export({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            <p className="text-white/40 text-xs">A designed PDF deck — same layouts and visuals as the PowerPoint.</p>
+            <p className="text-white/40 text-xs">A polished A4 sermon manuscript — formatted from your sermon content.</p>
             <Button
               className="w-full bg-red-700 hover:bg-red-600 gap-2"
               onClick={handleExportPDF}
