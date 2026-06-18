@@ -1,11 +1,13 @@
 import jsPDF from 'jspdf'
 import type { Sermon, StructuredSermon, SermonMedia, ExportTemplateId } from '@/types'
+import type { SlidePlan } from '@/types/slides'
 import { getTheme, withHash, contrastText } from '@/lib/sermon/templates'
 import { prepareImage } from '@/lib/exports/image'
 
 interface ExportOpts {
   templateId?: ExportTemplateId
   formatLabel?: string
+  slidePlan?: SlidePlan | null
 }
 
 // A polished A4 sermon MANUSCRIPT (portrait document) rendered from the
@@ -164,12 +166,20 @@ export async function generatePDF(
     y += blockH + 5
   }
 
-  // ── Preload + compress media ──
+  // ── Preload + compress images ──
+  // Use the media library AND any images the planner generated (so the
+  // manuscript has a hero + section images even without a Stage-3 visual set).
+  const planImgs = (opts.slidePlan?.slides ?? [])
+    .map((s) => ({ url: s.visual?.imageUrl, caption: s.visual?.spec ?? null }))
+    .filter((x): x is { url: string; caption: string | null } => !!x.url)
+  const mediaImgs = media.filter((m) => m.public_url).map((m) => ({ url: m.public_url as string, caption: m.caption }))
+  const seen = new Set<string>()
+  const sources = [...mediaImgs, ...planImgs].filter((s) => (seen.has(s.url) ? false : (seen.add(s.url), true)))
+
   const prepared = await Promise.all(
-    media.map(async (m) => {
-      if (!m.public_url) return null
-      const p = await prepareImage(m.public_url)
-      return p ? { data: p.dataUrl, w: p.w, h: p.h, caption: m.caption } : null
+    sources.map(async (src) => {
+      const p = await prepareImage(src.url)
+      return p ? { data: p.dataUrl, w: p.w, h: p.h, caption: src.caption } : null
     })
   )
   const imgData = prepared.filter(Boolean) as { data: string; w: number; h: number; caption: string | null }[]

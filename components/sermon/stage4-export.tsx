@@ -125,7 +125,9 @@ export default function Stage4Export({
     try {
       const formatLabel = draft?.template_type ? TEMPLATE_STRUCTURES[draft.template_type]?.label : undefined
       const { generatePDF } = await import('@/lib/exports/pdf')
-      const blob = await generatePDF(sermon, structured, media, { templateId, formatLabel })
+      // Pass the existing plan (if any) so the manuscript can use the planner's
+      // generated images even when the media library is empty. No new plan is forced.
+      const blob = await generatePDF(sermon, structured, media, { templateId, formatLabel, slidePlan: slidePlan ?? draft?.slide_plan ?? null })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url; a.download = `${sermon.title}.pdf`; a.click()

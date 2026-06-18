@@ -43,7 +43,13 @@ export async function generatePPT(
   pptx.title = structured.title || sermon.title
 
   // ── Raw scene image pool (URLs) for backgrounds ──
-  const rawPool = media.map((m) => m.public_url).filter(Boolean) as string[]
+  // Combine the user's media library AND the per-slide images the planner
+  // generated (stored on the plan, not in sermon_media). This guarantees text
+  // slides get a background even when "Design Deck" was used without a
+  // separate Stage-3 visual set — so the deck looks the same either way.
+  const planImages = plan.slides.map((s) => s.visual?.imageUrl).filter(Boolean) as string[]
+  const mediaImages = media.map((m) => m.public_url).filter(Boolean) as string[]
+  const rawPool = Array.from(new Set([...mediaImages, ...planImages]))
   let poolIdx = 0
   const nextRaw = (): string | null => (rawPool.length ? rawPool[poolIdx++ % rawPool.length] : null)
 
