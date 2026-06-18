@@ -1,120 +1,97 @@
 import type { StructuredSermon } from '@/types'
 import type { SlidePlan, SlideSpec } from '@/types/slides'
 import { generateText, parseModelJson, MODELS } from '@/lib/gemini'
-import { validatePlan } from '@/lib/slides/planSchema'
-import { buildFallbackPlan } from '@/lib/slides/fallbackPlan'
+import { buildContentPlan } from '@/lib/slides/contentPlan'
 import { structuredToPlainText } from '@/lib/sermon/structured'
 
-const PLANNER_PROMPT = (sermon: string, title: string, target: number) => `You are an award-winning presentation designer and a thoughtful Bible teacher. Turn the sermon below into a SLIDE PLAN for a premium, editorial, NotebookLM-grade deck that feels hand-crafted — varied layouts, one idea per slide, generous whitespace, and the RIGHT visual only where it genuinely helps.
+// The deck is built CONTENT-FIRST from the real sermon (buildContentPlan), then
+// ENRICHED with content-aware visuals — a biblical map for places, a route for
+// a journey, a timeline for a sequence, a diagram for a relationship. The
+// enrichment only ADDS visual slides; it never removes or rewrites the
+// preaching content. If it fails, the faithful content deck stands on its own.
 
-Return ONLY a JSON object: { "meta": { "title": "...", "theme": "", "generatedFor": "planner" }, "slides": SlideSpec[] }.
-
-Aim for about ${target} slides. Each SlideSpec:
-{
-  "layout": one of cover | fullBleedCaption | split | figure | showcase | scripture | bigStat | bento | threeCol | timelineSlide | pullQuote | twoUp | sectionDivider | closing,
-  "role": cover | section | teaching | scripture | application | illustration | stat | comparison | framework | prayer | closing,
-  "emphasis": normal | breath | climax,   // breath = a spacious pattern-break; climax = cover/divider/close
-  "kicker": "<=4-word tracked eyebrow (optional)",
-  "heading": "<=10 words — the ONE headline of the slide",
-  "subheading": "one short line (optional)",
-  "body": ["0–5 SHORT lines; varied lengths; not all starting with a verb"],
-  "reference": "scripture ref or attribution (optional)",
-  "stat": { "value": "12", "label": "..." },   // bigStat only
-  "imageSide": "left" | "right",                 // split only
-  "visual": { "type": ..., ...payload }
+interface Enrichment {
+  point: number // 1-based index of the main point this illustrates (0 = whole sermon)
+  kind: 'map' | 'route' | 'timeline' | 'diagram'
+  heading: string
+  caption?: string
+  places?: Array<{ name: string; note?: string }>
+  routeStops?: Array<{ name: string; order: number; note?: string }>
+  events?: Array<{ label: string; date?: string; note?: string }>
+  diagram?: {
+    shape: 'hubSpoke' | 'flow' | 'compare' | 'pyramid' | 'list'
+    center?: string
+    nodes?: Array<{ label: string; detail?: string }>
+    leftHeader?: string; rightHeader?: string
+    leftItems?: string[]; rightItems?: string[]
+  }
 }
 
-VISUAL RULES — choose AT MOST ONE visual per slide, by this PRIORITY (stop at the first that fits); default to "none":
-1. route  — two+ named places WITH movement/ordering (a journey: Exodus, Paul's travels, flight to Egypt). payload: "routeStops":[{"name","order","note?"}].
-2. map    — named biblical place(s) where geography matters (no journey). payload: "places":[{"name","note?"}].
-3. timeline — ordered events / eras / sequence ("first…then…finally", dated events, <=5). payload: "events":[{"label","date?","note?"}].
-4. diagram — a relationship / contrast / hierarchy / enumerated set ("three persons", "fruit of the Spirit", "law vs grace"). payload: "diagram":{"shape":hubSpoke|flow|compare|pyramid|list,"center?","nodes":[{"label","detail?"}],"leftHeader?","rightHeader?","leftItems?","rightItems?"}.
-5. scriptureArt — a single featured verse you want to display in full. payload: "scripture":{"text","reference"}.
-6. scene — a narrative moment / mood / setting / illustration needing NO accurate on-image words. payload: "prompt":"a cinematic, reverent scene of …, no text, no letters, no words", optional "highQuality":true (reserve for cover/divider/closing). USE SCENE GENEROUSLY for teaching and illustration slides — a relevant image makes the message vivid.
-7. none — theological exposition, exhortation, definitions, transitions: TEXT-ONLY.
+const ENRICH_PROMPT = (sermon: string) => `You are a sermon visual designer. Read the sermon and identify up to 4 places where a CRISP, LABELLED diagram would genuinely help a congregation — and ONLY where the content truly calls for it. Do not force visuals.
 
-Roughly HALF the slides should carry a scene image (as a background on cover/divider/fullBleedCaption, or as a FRAMED content image on figure/showcase/split). Use programmatic visuals (map/route/timeline/diagram/scriptureArt) wherever the content has places, sequences, relationships, or a featured verse — they render with crisp text. NEVER ask a scene image to contain readable words.
+Choose from:
+- "map": the text names biblical place(s) where geography matters. payload "places":[{"name","note?"}].
+- "route": a JOURNEY — two+ places in order / movement ("travelled from… to…", a missionary journey, the Exodus). payload "routeStops":[{"name","order","note?"}].
+- "timeline": an ordered sequence of events / eras ("first… then… finally", dated events). payload "events":[{"label","date?","note?"}] (max 5).
+- "diagram": a relationship / contrast / enumerated set ("three persons", "law vs grace", "the fruit of the Spirit"). payload "diagram":{"shape":hubSpoke|flow|compare|pyramid|list,"center?","nodes":[{"label","detail?"}],"leftHeader?","rightHeader?","leftItems?","rightItems?"}.
 
-LAYOUT GUIDANCE — rotate layouts so no two consecutive slides share one; match layout to content:
-- cover: opening title (climax). closing: benediction/sending (climax). sectionDivider: between major points.
-- figure: a teaching point WITH a relevant framed illustration image beside the text (visual:"scene"). PREFER this over plain split when an image would help the point land — the image sits framed as content, not just a backdrop.
-- showcase: one powerful idea with a LARGE framed image as the hero subject + a short caption (visual:"scene"). Great for a vivid illustration or a pivotal scene.
-- split: a teaching point + one supporting visual edge-to-edge (alternate imageSide).
-- scripture: a featured verse. threeCol: exactly 3 parallel points. twoUp: a contrast. bigStat: one striking number/word. bento: an enumerated set / applications. timelineSlide: a sequence. pullQuote: a non-scripture quote. fullBleedCaption: an emotional 'breath' beat.
-For figure/showcase/split with an image, set the slide's "visual.type":"scene" with a "prompt" AND a short "spec" (used as the image caption).
+Return ONLY JSON: { "visuals": [ { "point": <1-based main-point number this illustrates, or 0 for the whole sermon>, "kind": ..., "heading": "<short slide title>", "caption": "<one line>", ...payload } ] }
+Return { "visuals": [] } if nothing genuinely fits. Never invent place names or events that aren't in the sermon. Prefer at most 2-3 visuals total, and favour VARIETY — do not return the same kind repeatedly unless each is clearly distinct and warranted.
 
-Keep headings <=10 words. Keep body lines short. Be restrained, reverent, and varied.
-
-SERMON (title: "${title}"):
+SERMON:
 ${sermon}`
 
-/** Enforce restraint + variety deterministically after the LLM responds. */
-function postProcess(plan: SlidePlan, themeId: string): SlidePlan {
-  const VISUAL_BUDGET = 0.85 // share of slides allowed to carry any visual
-  let visualCount = 0
-  let splitSide: 'left' | 'right' = 'right'
+function visualFromEnrichment(e: Enrichment): SlideSpec['visual'] | null {
+  if (e.kind === 'map' && e.places?.length) return { type: 'map', places: e.places, spec: e.caption }
+  if (e.kind === 'route' && (e.routeStops?.length ?? 0) >= 2) return { type: 'route', routeStops: e.routeStops, spec: e.caption }
+  if (e.kind === 'timeline' && (e.events?.length ?? 0) >= 2) return { type: 'timeline', events: e.events, spec: e.caption }
+  if (e.kind === 'diagram' && e.diagram) {
+    const d = e.diagram
+    const ok = d.shape === 'compare' ? (d.leftItems?.length || d.rightItems?.length) : (d.nodes?.length ?? 0) >= 2
+    if (ok) return { type: 'diagram', diagram: { ...d, nodes: d.nodes ?? [] }, spec: e.caption }
+  }
+  return null
+}
 
-  const slides = plan.slides.map((s): SlideSpec => {
-    const out: SlideSpec = { ...s }
-
-    // Drop visuals whose required payload is missing (planner mistakes).
-    const v = out.visual
-    const payloadOk =
-      (v.type === 'scene' && (v.prompt || v.spec)) ||
-      (v.type === 'scriptureArt' && v.scripture?.text) ||
-      (v.type === 'map' && (v.places?.length ?? 0) >= 1) ||
-      (v.type === 'route' && (v.routeStops?.length ?? 0) >= 2) ||
-      (v.type === 'timeline' && (v.events?.length ?? 0) >= 2) ||
-      (v.type === 'diagram' && (v.diagram?.nodes?.length ?? 0) >= 2) ||
-      v.type === 'none'
-    if (!payloadOk) out.visual = { type: 'none' }
-
-    // Visual budget — demote excess scene visuals to text-only (cheap visuals
-    // like diagrams/timelines/scripture are kept; only AI scenes are capped).
-    if (out.visual.type !== 'none') {
-      visualCount++
-      if (out.visual.type === 'scene' && visualCount / plan.slides.length > VISUAL_BUDGET && out.role !== 'cover' && out.role !== 'closing') {
-        out.visual = { type: 'none' }
-        visualCount--
-      }
+/** Insert each enrichment slide right after the divider of the point it
+ *  illustrates (or after the opening scripture for point 0). */
+function mergeEnrichments(plan: SlidePlan, items: Enrichment[]): SlidePlan {
+  if (!items.length) return plan
+  const slides = [...plan.slides]
+  // index of each main-point divider, in order
+  const dividerIdx = slides.map((s, i) => (s.role === 'section' ? i : -1)).filter((i) => i >= 0)
+  // process from the end so earlier insert positions stay valid
+  const sorted = [...items].sort((a, b) => b.point - a.point)
+  for (const e of sorted) {
+    const v = visualFromEnrichment(e)
+    if (!v) continue
+    const slide: SlideSpec = {
+      layout: v.type === 'timeline' ? 'timelineSlide' : v.type === 'diagram' ? 'threeCol' : 'split',
+      role: 'illustration', emphasis: 'normal',
+      kicker: e.point > 0 ? `Point ${e.point}` : 'Context',
+      heading: e.heading || 'A Closer Look',
+      visual: v,
     }
-
-    // Force scene no-text clause.
-    if (out.visual.type === 'scene') {
-      const base = out.visual.prompt || out.visual.spec || out.heading
-      out.visual = { ...out.visual, prompt: /no text|no letters|no words/i.test(base) ? base : `${base}. Cinematic, reverent, fine-art; no text, no letters, no words.` }
-    }
-
-    // Alternate split image side so consecutive splits don't mirror each other.
-    if (out.layout === 'split') { out.imageSide = splitSide; splitSide = splitSide === 'right' ? 'left' : 'right' }
-
-    // Clamp overly long headings — by words, with a hard character cap so
-    // space-free scripts (and run-on phrases) can't overflow either.
-    if (out.heading) {
-      const words = out.heading.trim().split(/\s+/)
-      let h = words.length > 12 ? words.slice(0, 12).join(' ') : out.heading.trim()
-      if (h.length > 90) h = h.slice(0, 90).trimEnd() + '…'
-      out.heading = h
-    }
-    return out
-  })
-
-  return { ...plan, meta: { ...plan.meta, theme: themeId }, slides }
+    let at: number
+    if (e.point >= 1 && e.point <= dividerIdx.length) at = dividerIdx[e.point - 1] + 1
+    else at = Math.min(2, slides.length) // after cover (+scripture) for sermon-wide
+    slides.splice(at, 0, slide)
+  }
+  return { ...plan, slides }
 }
 
 export async function buildSlidePlan(
   structured: StructuredSermon,
   opts: { themeId: string; targetSlideCount?: number }
 ): Promise<SlidePlan> {
-  const target = Math.max(8, Math.min(24, opts.targetSlideCount ?? 14))
-  const sermonText = structuredToPlainText(structured).slice(0, 9000)
+  const plan = buildContentPlan(structured, opts) // faithful spine — always valid
   try {
-    const raw = await generateText(PLANNER_PROMPT(sermonText, structured.title, target), MODELS.flash)
-    const plan = validatePlan(parseModelJson(raw))
-    if (!plan.slides.length) throw new Error('planner returned no slides')
-    return postProcess(plan, opts.themeId)
+    const raw = await generateText(ENRICH_PROMPT(structuredToPlainText(structured).slice(0, 9000)), MODELS.flash)
+    const parsed = parseModelJson<{ visuals?: Enrichment[] }>(raw)
+    const items = (parsed?.visuals ?? []).slice(0, 3)
+    return mergeEnrichments(plan, items)
   } catch (err) {
-    console.error('Slide planner failed, using deterministic fallback:', err)
-    return buildFallbackPlan(structured, opts.themeId)
+    console.error('Visual enrichment failed (keeping content deck):', err)
+    return plan
   }
 }
