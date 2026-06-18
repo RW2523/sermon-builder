@@ -59,7 +59,7 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
             </div>
             <span className="font-semibold">SabAi Sermon</span>
           </div>
-          <Badge className="bg-green-600 text-white text-xs gap-1">
+          <Badge className="bg-amber-500 text-slate-950 text-xs gap-1">
             <Share2 className="h-3 w-3" /> Public Sermon
           </Badge>
         </div>
@@ -91,7 +91,7 @@ export default async function SharePage({ params }: { params: Promise<{ slug: st
 
         {/* Summary */}
         {post.summary && (
-          <div className="bg-blue-950/40 border border-amber-400/20 rounded-xl p-6">
+          <div className="bg-white/5 border border-amber-400/20 rounded-xl p-6">
             <p className="text-white/80 leading-relaxed text-base">{post.summary}</p>
           </div>
         )}

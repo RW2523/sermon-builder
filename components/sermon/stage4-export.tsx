@@ -347,7 +347,7 @@ export default function Stage4Export({
             Generate speaker notes with delivery tips, timing, transitions, and altar call guidance. Notes are embedded into your PPT export.
           </p>
           <Button
-            className="w-full bg-amber-700 hover:bg-amber-600 gap-2"
+            className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
             onClick={handleGenerateSpeakerNotes}
             disabled={generatingNotes || !draft}
           >
@@ -429,7 +429,7 @@ export default function Stage4Export({
       </Card>
 
       {/* Deck design — content-aware layout + visual planning */}
-      <Card className="border-amber-400/25 bg-gradient-to-br from-amber-500/10 to-orange-600/5 text-white">
+      <Card className="border-amber-400/25 bg-gradient-to-br from-amber-500/10 to-amber-600/5 text-white">
         <CardContent className="flex flex-col sm:flex-row sm:items-center gap-4 py-4">
           <div className="flex-1 space-y-0.5">
             <p className="text-white font-medium text-sm flex items-center gap-2">
@@ -459,13 +459,13 @@ export default function Stage4Export({
         <Card className="border-white/10 bg-white/5 text-white">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-              <FileText className="h-4 w-4 text-red-400" /> PDF Export
+              <FileText className="h-4 w-4 text-amber-300" /> PDF Export
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-white/40 text-xs">A polished A4 sermon manuscript — formatted from your sermon content.</p>
             <Button
-              className="w-full bg-red-700 hover:bg-red-600 gap-2"
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
               onClick={handleExportPDF}
               disabled={exportingPDF || !draft}
             >
@@ -479,13 +479,13 @@ export default function Stage4Export({
         <Card className="border-white/10 bg-white/5 text-white">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-              <Presentation className="h-4 w-4 text-orange-400" /> PowerPoint
+              <Presentation className="h-4 w-4 text-amber-300" /> PowerPoint
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-white/40 text-xs">Designed slides with the right visual on each, speaker notes embedded.</p>
             <Button
-              className="w-full bg-orange-700 hover:bg-orange-600 gap-2"
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
               onClick={handleExportPPT}
               disabled={exportingPPT || planning || !draft}
             >
@@ -499,13 +499,13 @@ export default function Stage4Export({
         <Card className="border-white/10 bg-white/5 text-white">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-              <Printer className="h-4 w-4 text-green-400" /> Print Notes
+              <Printer className="h-4 w-4 text-amber-300" /> Print Notes
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-white/40 text-xs">Printable sermon notes with visuals and speaker notes.</p>
             <Button
-              className="w-full bg-green-700 hover:bg-green-600 gap-2"
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
               onClick={handlePrintNotes}
               disabled={!draft}
             >
@@ -519,7 +519,7 @@ export default function Stage4Export({
         <Card className="border-white/10 bg-white/5 text-white">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-              <Video className="h-4 w-4 text-blue-400" /> Sermon Video
+              <Video className="h-4 w-4 text-amber-300" /> Sermon Video
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -528,13 +528,13 @@ export default function Stage4Export({
               <Button
                 size="sm"
                 variant={isRecording ? 'destructive' : 'default'}
-                className={cn('flex-1', isRecording ? '' : 'bg-blue-700 hover:bg-blue-600')}
+                className={cn('flex-1', isRecording ? '' : 'bg-amber-500 hover:bg-amber-400 text-slate-950')}
                 onClick={isRecording ? stopRecording : startRecording}
               >
                 {isRecording ? <><MicOff className="h-3.5 w-3.5 mr-1" />Stop</> : <><Mic className="h-3.5 w-3.5 mr-1" />Record</>}
               </Button>
               {recordedAudio && !isRecording && (
-                <Badge variant="outline" className="border-green-500/50 text-green-400 text-xs">
+                <Badge variant="outline" className="border-amber-400/50 text-amber-300 text-xs">
                   {Math.floor(audioDuration)}s
                 </Badge>
               )}
@@ -546,7 +546,7 @@ export default function Stage4Export({
               </div>
             )}
             <Button
-              className="w-full bg-blue-700 hover:bg-blue-600 gap-2"
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
               onClick={handleRenderVideo}
               disabled={renderingVideo || !recordedAudio}
             >
@@ -555,7 +555,7 @@ export default function Stage4Export({
             </Button>
             {videoUrl && (
               <a href={videoUrl} download={`${sermon.title}.webm`}>
-                <Button variant="outline" size="sm" className="w-full border-blue-500/50 text-blue-400 gap-1">
+                <Button variant="outline" size="sm" className="w-full border-amber-400/50 text-amber-300 gap-1">
                   <Download className="h-3.5 w-3.5" /> Download Video
                 </Button>
               </a>
@@ -568,13 +568,13 @@ export default function Stage4Export({
       <Card className="border-white/10 bg-white/5 text-white">
         <CardHeader className="pb-2">
           <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-            <Share2 className="h-4 w-4 text-green-400" /> Outreach & Social Media
+            <Share2 className="h-4 w-4 text-amber-300" /> Outreach & Social Media
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-white/40 text-sm">Generate congregation summaries and social media captions ready to copy and share.</p>
           <Button
-            className="w-full bg-green-700 hover:bg-green-600 gap-2"
+            className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
             onClick={handleGenerateOutreach}
             disabled={generatingOutreach}
           >
@@ -589,7 +589,7 @@ export default function Stage4Export({
                   <div className="flex items-center justify-between">
                     <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Congregation Summary</span>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(outreach.summary!, 'summary')}>
-                      {copied === 'summary' ? <CheckCheck className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copied === 'summary' ? <CheckCheck className="h-3.5 w-3.5 text-amber-300" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
                   <p className="text-white/70 text-sm bg-white/5 rounded-lg p-3 leading-relaxed">{outreach.summary}</p>
@@ -601,7 +601,7 @@ export default function Stage4Export({
                   <div className="flex items-center justify-between">
                     <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Social Caption</span>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(outreach.social_caption!, 'caption')}>
-                      {copied === 'caption' ? <CheckCheck className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copied === 'caption' ? <CheckCheck className="h-3.5 w-3.5 text-amber-300" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
                   <p className="text-white/70 text-sm bg-white/5 rounded-lg p-3">{outreach.social_caption}</p>
@@ -616,7 +616,7 @@ export default function Stage4Export({
                       <Badge
                         key={tag}
                         variant="outline"
-                        className="border-green-500/30 text-green-400 text-xs cursor-pointer hover:border-green-400"
+                        className="border-amber-400/30 text-amber-300 text-xs cursor-pointer hover:border-amber-400"
                         onClick={() => copyText(`#${tag}`, tag)}
                       >
                         #{tag}
@@ -631,7 +631,7 @@ export default function Stage4Export({
                   <div className="flex items-center justify-between">
                     <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Instagram</span>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(socialData!.instagram_caption as string, 'ig')}>
-                      {copied === 'ig' ? <CheckCheck className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copied === 'ig' ? <CheckCheck className="h-3.5 w-3.5 text-amber-300" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
                   <Textarea readOnly value={socialData!.instagram_caption as string} className="min-h-[80px] border-white/10 bg-white/5 text-white/70 text-xs resize-none" />
@@ -643,7 +643,7 @@ export default function Stage4Export({
                   <div className="flex items-center justify-between">
                     <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Facebook</span>
                     <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(socialData!.facebook_post as string, 'fb')}>
-                      {copied === 'fb' ? <CheckCheck className="h-3.5 w-3.5 text-green-400" /> : <Copy className="h-3.5 w-3.5" />}
+                      {copied === 'fb' ? <CheckCheck className="h-3.5 w-3.5 text-amber-300" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
                   <Textarea readOnly value={socialData!.facebook_post as string} className="min-h-[80px] border-white/10 bg-white/5 text-white/70 text-xs resize-none" />
@@ -680,7 +680,7 @@ export default function Stage4Export({
             <div className="flex items-center gap-2 bg-white/5 rounded-lg p-3">
               <p className="text-amber-300 text-sm flex-1 truncate">{shareUrl}</p>
               <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white shrink-0" onClick={() => copyText(shareUrl, 'share')}>
-                {copied === 'share' ? <CheckCheck className="h-4 w-4 text-green-400" /> : <Copy className="h-4 w-4" />}
+                {copied === 'share' ? <CheckCheck className="h-4 w-4 text-amber-300" /> : <Copy className="h-4 w-4" />}
               </Button>
               <a href={shareUrl} target="_blank" rel="noopener noreferrer">
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white">
@@ -697,7 +697,7 @@ export default function Stage4Export({
         <Button variant="ghost" onClick={onBack} className="text-white/60 hover:text-white gap-2">
           <ArrowLeft className="h-4 w-4" /> Back
         </Button>
-        <Badge className="bg-green-600 text-white px-4 py-1.5 text-sm self-center">
+        <Badge className="bg-amber-500 text-slate-950 px-4 py-1.5 text-sm self-center">
           Sermon Complete
         </Badge>
       </div>

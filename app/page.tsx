@@ -14,19 +14,19 @@ const STAGES = [
     icon: Mic,
     title: 'Collect everything',
     desc: 'Type notes, dictate out loud, upload recordings or documents — every scattered idea lands in one place.',
-    color: 'text-sky-400 bg-sky-500/10 border-sky-500/20',
+    color: 'text-amber-400 bg-amber-500/10 border-amber-400/20',
   },
   {
     icon: Sparkles,
     title: 'Polish your message',
     desc: 'Your raw material is shaped into a structured sermon, restyled into any of 10 formats you preach in.',
-    color: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
+    color: 'text-amber-400 bg-amber-500/10 border-amber-400/20',
   },
   {
     icon: ImageIcon,
     title: 'Generate visuals',
     desc: 'Biblical scenes, maps, timelines and scripture slides — matched to your message, ready for the screen.',
-    color: 'text-blue-400 bg-blue-500/10 border-blue-500/20',
+    color: 'text-amber-400 bg-amber-500/10 border-amber-400/20',
   },
   {
     icon: Share2,

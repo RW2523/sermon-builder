@@ -23,7 +23,7 @@ const VISUAL_TYPES: { kind: MediaKind; label: string; desc: string; icon: React.
     label: 'Illustration',
     desc: 'Action-based biblical scene',
     icon: <ImageIcon className="h-4 w-4" />,
-    color: 'border-blue-500 bg-blue-900/30',
+    color: 'border-amber-400 bg-amber-500/10',
     placeholder: 'e.g. Jesus calming the storm, disciples in fear, waves crashing the boat at night',
   },
   {
@@ -31,7 +31,7 @@ const VISUAL_TYPES: { kind: MediaKind; label: string; desc: string; icon: React.
     label: 'Biblical Map',
     desc: 'Geographic / historical map',
     icon: <Map className="h-4 w-4" />,
-    color: 'border-amber-500 bg-amber-900/30',
+    color: 'border-amber-400 bg-amber-500/10',
     placeholder: 'e.g. Map of ancient Israel showing the route from Egypt to Canaan',
   },
   {
@@ -39,7 +39,7 @@ const VISUAL_TYPES: { kind: MediaKind; label: string; desc: string; icon: React.
     label: 'Timeline',
     desc: 'Historical / biblical timeline',
     icon: <Clock className="h-4 w-4" />,
-    color: 'border-teal-500 bg-teal-900/30',
+    color: 'border-amber-400 bg-amber-500/10',
     placeholder: 'e.g. Timeline of major events in the life of the Apostle Paul',
   },
   {
@@ -47,7 +47,7 @@ const VISUAL_TYPES: { kind: MediaKind; label: string; desc: string; icon: React.
     label: 'Scripture Slide',
     desc: 'Highlighted verse presentation',
     icon: <BookMarked className="h-4 w-4" />,
-    color: 'border-amber-400 bg-blue-950/40',
+    color: 'border-amber-400 bg-amber-500/10',
     placeholder: 'e.g. John 3:16 — For God so loved the world presentation slide',
   },
   {
@@ -55,17 +55,17 @@ const VISUAL_TYPES: { kind: MediaKind; label: string; desc: string; icon: React.
     label: 'Sermon Graphic',
     desc: 'Custom title / theme graphic',
     icon: <Palette className="h-4 w-4" />,
-    color: 'border-rose-500 bg-rose-900/30',
+    color: 'border-amber-400 bg-amber-500/10',
     placeholder: 'e.g. Sermon title banner for "Walking in Faith" with cross and sunrise imagery',
   },
 ]
 
 const KIND_BADGE_COLOR: Record<MediaKind, string> = {
-  image: 'bg-blue-700',
-  map: 'bg-amber-700',
-  timeline: 'bg-teal-700',
-  scripture_slide: 'bg-blue-800',
-  graphic: 'bg-rose-700',
+  image: 'bg-amber-500/80 text-slate-950',
+  map: 'bg-amber-500/80 text-slate-950',
+  timeline: 'bg-amber-500/80 text-slate-950',
+  scripture_slide: 'bg-amber-500/80 text-slate-950',
+  graphic: 'bg-amber-500/80 text-slate-950',
 }
 
 interface GeneratingState { [id: string]: boolean }
@@ -200,12 +200,12 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
       <Card className="border-white/10 bg-white/5 text-white">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-blue-400" /> Generate Visuals
+            <Sparkles className="h-4 w-4 text-amber-300" /> Generate Visuals
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* One-click full visual set — powers a background image on every slide */}
-          <div className="rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-500/10 to-blue-600/10 p-4 space-y-3">
+          <div className="rounded-lg border border-amber-400/30 bg-gradient-to-br from-amber-500/10 to-amber-600/10 p-4 space-y-3">
             <div className="flex items-start gap-3">
               <div className="rounded-md bg-amber-400/20 p-2 shrink-0">
                 <Wand2 className="h-5 w-5 text-amber-300" />
@@ -281,7 +281,7 @@ export default function Stage3Multimedia({ sermon, draft, media, onMediaChange, 
 
           <div className="flex gap-2">
             <Button
-              className="flex-1 bg-blue-600 hover:bg-blue-500 gap-2"
+              className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
               onClick={() => generateImage({ prompt: customPrompt, kind: selectedKind, highQuality })}
               disabled={generating || !customPrompt.trim()}
             >

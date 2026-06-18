@@ -81,7 +81,7 @@ function LoginForm() {
         <div className="glass rounded-2xl p-6 sm:p-8 space-y-5 shadow-2xl shadow-black/30">
           <Button
             type="button"
-            className="w-full h-11 gap-2 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 text-amber-950 font-semibold shadow-lg shadow-amber-500/20 transition-all hover:shadow-amber-500/35"
+            className="w-full h-11 gap-2 bg-gradient-to-r from-amber-500 to-yellow-400 hover:from-amber-400 hover:to-yellow-300 text-slate-950 font-semibold shadow-lg shadow-amber-500/20 transition-all hover:shadow-amber-500/35"
             onClick={handleDemoLogin}
             disabled={demoLoading || loading}
           >

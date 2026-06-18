@@ -22,15 +22,15 @@ import { TEMPLATE_STRUCTURES } from '@/lib/sermon/templateStructures'
 import { htmlToStructured } from '@/lib/sermon/legacy'
 
 const TEMPLATES: { value: TemplateType; label: string; desc: string; icon: string; color: string }[] = [
-  { value: 'message',     label: 'Sunday Message',   desc: 'Classic 3-point sermon',       icon: '📖', color: 'border-amber-400 bg-blue-950/40' },
-  { value: 'prayer',      label: 'Prayer Focus',     desc: 'Intercession & praise',         icon: '🙏', color: 'border-blue-500 bg-blue-900/40' },
-  { value: 'story',       label: 'Story-Driven',     desc: 'Narrative sermon style',        icon: '📜', color: 'border-amber-500 bg-amber-900/40' },
-  { value: 'devotional',  label: 'Devotional',       desc: 'Short daily reflection',        icon: '✨', color: 'border-sky-500 bg-sky-950/40' },
-  { value: 'teaching',    label: 'Bible Teaching',   desc: 'Deep expository study',         icon: '🎓', color: 'border-teal-500 bg-teal-900/40' },
-  { value: 'testimony',   label: 'Testimony',        desc: 'Personal witness format',       icon: '🙌', color: 'border-orange-500 bg-orange-900/40' },
-  { value: 'youth',       label: 'Youth Message',    desc: 'High-energy, relevant style',   icon: '⚡', color: 'border-yellow-500 bg-yellow-900/40' },
-  { value: 'small_group', label: 'Small Group',      desc: 'Discussion guide format',       icon: '👥', color: 'border-cyan-500 bg-cyan-900/40' },
-  { value: 'storytelling',label: 'Storytelling',     desc: 'Cinematic narrative format',    icon: '🎬', color: 'border-rose-500 bg-rose-900/40' },
+  { value: 'message',     label: 'Sunday Message',   desc: 'Classic 3-point sermon',       icon: '📖', color: 'border-amber-400 bg-amber-500/10' },
+  { value: 'prayer',      label: 'Prayer Focus',     desc: 'Intercession & praise',         icon: '🙏', color: 'border-amber-400 bg-amber-500/10' },
+  { value: 'story',       label: 'Story-Driven',     desc: 'Narrative sermon style',        icon: '📜', color: 'border-amber-500 bg-amber-500/10' },
+  { value: 'devotional',  label: 'Devotional',       desc: 'Short daily reflection',        icon: '✨', color: 'border-amber-400 bg-amber-500/10' },
+  { value: 'teaching',    label: 'Bible Teaching',   desc: 'Deep expository study',         icon: '🎓', color: 'border-amber-400 bg-amber-500/10' },
+  { value: 'testimony',   label: 'Testimony',        desc: 'Personal witness format',       icon: '🙌', color: 'border-amber-400 bg-amber-500/10' },
+  { value: 'youth',       label: 'Youth Message',    desc: 'High-energy, relevant style',   icon: '⚡', color: 'border-amber-400 bg-amber-500/10' },
+  { value: 'small_group', label: 'Small Group',      desc: 'Discussion guide format',       icon: '👥', color: 'border-amber-400 bg-amber-500/10' },
+  { value: 'storytelling',label: 'Storytelling',     desc: 'Cinematic narrative format',    icon: '🎬', color: 'border-amber-400 bg-amber-500/10' },
   { value: 'custom',      label: 'Custom Polish',    desc: 'Enhance without restructuring', icon: '✏️', color: 'border-slate-500 bg-slate-800/40' },
 ]
 
@@ -202,7 +202,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
         <Card className="border-white/10 bg-white/5 text-white">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-white/80 flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-yellow-400" /> Step 1 — Polish
+              <Sparkles className="h-4 w-4 text-amber-300" /> Step 1 — Polish
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
@@ -233,7 +233,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
             </div>
             <p className="text-white/30 text-[11px] leading-snug">{TONES.find((t) => t.id === tone)?.hint}</p>
             <Button
-              className="w-full bg-yellow-600 hover:bg-yellow-500 gap-2"
+              className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
               onClick={handlePolish}
               disabled={polishing || !inputs.length}
             >
@@ -358,7 +358,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
             Get suggestions for stronger illustrations, better applications, scripture connections, and more.
           </p>
           <Button
-            className="w-full bg-amber-700 hover:bg-amber-600 gap-2"
+            className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-2"
             onClick={handleGetSuggestions}
             disabled={loadingSuggestions || !draft}
           >
@@ -392,7 +392,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
                         <p className="text-white/80 text-sm font-medium">{ill.title}</p>
                         <p className="text-white/50 text-xs leading-relaxed">{ill.description}</p>
                         <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(`${ill.title}: ${ill.description}`, `ill-${i}`)}>
-                          {copiedSuggestion === `ill-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                          {copiedSuggestion === `ill-${i}` ? <CheckCheck className="h-3 w-3 text-amber-300" /> : <Copy className="h-3 w-3" />}
                         </Button>
                       </div>
                     ))}
@@ -410,7 +410,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
                         <p className="text-white/60 text-xs text-amber-300">{app.point}</p>
                         <p className="text-white/70 text-sm leading-relaxed">{app.suggestion}</p>
                         <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(app.suggestion, `app-${i}`)}>
-                          {copiedSuggestion === `app-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                          {copiedSuggestion === `app-${i}` ? <CheckCheck className="h-3 w-3 text-amber-300" /> : <Copy className="h-3 w-3" />}
                         </Button>
                       </div>
                     ))}
@@ -425,10 +425,10 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
                   <div className="space-y-1.5">
                     {suggestions.scripture_connections.map((sc, i) => (
                       <div key={i} className="flex items-start gap-2 bg-white/5 rounded-lg p-2.5 group relative">
-                        <Badge variant="outline" className="border-green-500/40 text-green-300 text-xs shrink-0">{sc.reference}</Badge>
+                        <Badge variant="outline" className="border-amber-400/40 text-amber-300 text-xs shrink-0">{sc.reference}</Badge>
                         <p className="text-white/60 text-xs leading-relaxed">{sc.connection}</p>
                         <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(sc.reference, `sc-${i}`)}>
-                          {copiedSuggestion === `sc-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                          {copiedSuggestion === `sc-${i}` ? <CheckCheck className="h-3 w-3 text-amber-300" /> : <Copy className="h-3 w-3" />}
                         </Button>
                       </div>
                     ))}
@@ -444,7 +444,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
                     <div key={i} className="bg-white/5 rounded-lg p-2.5 group relative">
                       <p className="text-white/70 text-sm leading-relaxed pr-8">&ldquo;{hook}&rdquo;</p>
                       <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(hook, `hook-${i}`)}>
-                        {copiedSuggestion === `hook-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                        {copiedSuggestion === `hook-${i}` ? <CheckCheck className="h-3 w-3 text-amber-300" /> : <Copy className="h-3 w-3" />}
                       </Button>
                     </div>
                   ))}
@@ -459,7 +459,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
                     <div key={i} className="bg-white/5 rounded-lg p-2.5 group relative">
                       <p className="text-white/70 text-sm leading-relaxed pr-8">&ldquo;{cta}&rdquo;</p>
                       <Button variant="ghost" size="icon" className="h-5 w-5 absolute top-2 right-2 text-white/20 hover:text-white opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => copySuggestion(cta, `cta-${i}`)}>
-                        {copiedSuggestion === `cta-${i}` ? <CheckCheck className="h-3 w-3 text-green-400" /> : <Copy className="h-3 w-3" />}
+                        {copiedSuggestion === `cta-${i}` ? <CheckCheck className="h-3 w-3 text-amber-300" /> : <Copy className="h-3 w-3" />}
                       </Button>
                     </div>
                   ))}

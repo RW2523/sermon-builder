@@ -91,7 +91,7 @@ export default function SermonWorkspace({ sermon: initialSermon, inputs: initial
                         active
                           ? 'bg-gradient-to-br from-amber-400 to-amber-600 text-slate-950 shadow-lg shadow-amber-950/50 ring-2 ring-amber-400/40'
                           : completed
-                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-400/40'
+                          ? 'bg-amber-500/20 text-amber-300 border border-amber-400/40'
                           : 'border border-white/20 text-white/40'
                       )}
                     >

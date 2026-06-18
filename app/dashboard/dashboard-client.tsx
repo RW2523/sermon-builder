@@ -24,10 +24,10 @@ import { cn } from '@/lib/utils'
 
 const STATUS_STYLE: Record<string, { label: string; class: string }> = {
   draft: { label: 'Draft', class: 'bg-slate-500/20 text-slate-300 border-slate-400/30' },
-  polished: { label: 'Polished', class: 'bg-blue-500/20 text-blue-300 border-blue-400/30' },
-  multimedia: { label: 'Multimedia', class: 'bg-amber-500/20 text-amber-300 border-amber-400/30' },
-  exported: { label: 'Exported', class: 'bg-green-500/20 text-green-300 border-green-400/30' },
-  published: { label: 'Published', class: 'bg-emerald-500/20 text-emerald-300 border-emerald-400/30' },
+  polished: { label: 'Polished', class: 'bg-amber-500/15 text-amber-200 border-amber-400/30' },
+  multimedia: { label: 'Multimedia', class: 'bg-amber-500/20 text-amber-200 border-amber-400/30' },
+  exported: { label: 'Exported', class: 'bg-amber-500/25 text-amber-100 border-amber-400/40' },
+  published: { label: 'Published', class: 'bg-amber-400/30 text-amber-50 border-amber-300/50' },
 }
 
 const STAGE_LABELS: Record<number, string> = {
@@ -112,7 +112,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
           </div>
           <div className="flex items-center gap-3">
             <div className="hidden sm:flex items-center gap-2.5">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-blue-600/60 to-blue-800/60 border border-white/15 flex items-center justify-center text-xs font-semibold">
+              <div className="h-8 w-8 rounded-full bg-gradient-to-br from-amber-600/60 to-amber-600/60 border border-white/15 flex items-center justify-center text-xs font-semibold">
                 {initials}
               </div>
               <div className="leading-tight">
@@ -151,7 +151,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
               )}
               {publishedCount > 0 && (
                 <span className="flex items-center gap-1.5">
-                  <Share2 className="h-3.5 w-3.5 text-emerald-300" /> {publishedCount} published
+                  <Share2 className="h-3.5 w-3.5 text-amber-300" /> {publishedCount} published
                 </span>
               )}
             </div>
@@ -231,7 +231,7 @@ export default function DashboardClient({ profile, sermons: initialSermons }: Pr
                     )}
                     {sermon.theme && (
                       <p className="text-white/40 text-xs flex items-center gap-1.5">
-                        <Target className="h-3 w-3 text-sky-300/70 shrink-0" />
+                        <Target className="h-3 w-3 text-amber-300 shrink-0" />
                         <span className="truncate italic">{sermon.theme}</span>
                       </p>
                     )}

@@ -39,11 +39,11 @@ function uniqueStorageName(fileName: string) {
 
 const KIND_COLOR: Record<string, string> = {
   text: 'border-amber-400/40 text-amber-300',
-  dictation: 'border-sky-500/40 text-sky-300',
-  audio: 'border-blue-500/40 text-blue-300',
+  dictation: 'border-amber-400/40 text-amber-300',
+  audio: 'border-amber-400/40 text-amber-300',
   document: 'border-amber-500/40 text-amber-300',
-  bible_ref: 'border-green-500/40 text-green-300',
-  file: 'border-cyan-500/40 text-cyan-300',
+  bible_ref: 'border-amber-400/40 text-amber-300',
+  file: 'border-amber-400/40 text-amber-300',
 }
 
 export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext }: Props) {
@@ -358,7 +358,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
                   size="sm"
                   variant={isListening ? 'destructive' : 'default'}
                   onClick={toggleDictation}
-                  className={cn('gap-1.5', isListening ? '' : 'bg-sky-600 hover:bg-sky-500')}
+                  className={cn('gap-1.5', isListening ? '' : 'bg-amber-500 hover:bg-amber-400 text-slate-950')}
                 >
                   {isListening ? <><MicOff className="h-3.5 w-3.5" />Stop</> : <><Mic className="h-3.5 w-3.5" />Start Dictation</>}
                 </Button>
@@ -416,7 +416,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
               <div className="space-y-3">
                 <div className="space-y-1.5">
                   <Label className="text-white/60 text-xs flex items-center gap-1.5">
-                    <BookOpen className="h-3.5 w-3.5 text-green-400" /> Scripture Passage
+                    <BookOpen className="h-3.5 w-3.5 text-amber-300" /> Scripture Passage
                   </Label>
                   <Input
                     value={bibleVerse}
@@ -439,7 +439,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
                   size="sm"
                   onClick={saveBibleRef}
                   disabled={!bibleVerse.trim() || savingBible}
-                  className="w-full bg-green-700 hover:bg-green-600 gap-1.5"
+                  className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 gap-1.5"
                 >
                   {savingBible ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <BookOpen className="h-3.5 w-3.5" />}
                   Save Scripture Reference
@@ -454,7 +454,7 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
                     <button
                       key={ref}
                       onClick={() => setBibleVerse(ref)}
-                      className="text-xs px-2 py-1 rounded border border-white/10 text-white/40 hover:border-green-500/50 hover:text-green-300 transition-all"
+                      className="text-xs px-2 py-1 rounded border border-white/10 text-white/40 hover:border-amber-400/50 hover:text-amber-300 transition-all"
                     >
                       {ref}
                     </button>
