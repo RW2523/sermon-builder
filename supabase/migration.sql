@@ -333,6 +333,12 @@ create table if not exists rate_limits (
   reset_at  timestamptz not null
 );
 
+-- Service-role / SECURITY DEFINER access only. check_rate_limit() is SECURITY
+-- DEFINER and the app uses the service-role client, both of which bypass RLS;
+-- enabling RLS with no policies blocks all direct anon/authenticated access so
+-- a client can't read or reset their own rate-limit counters.
+alter table rate_limits enable row level security;
+
 create or replace function check_rate_limit(p_key text, p_limit int, p_window_seconds int)
 returns boolean language plpgsql security definer as $$
 declare
