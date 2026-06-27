@@ -31,8 +31,10 @@ export async function prepareImage(url: string, maxW = 1600, quality = 0.82): Pr
     canvas.height = h
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
-    // White matte so any transparency flattens cleanly under JPEG.
-    ctx.fillStyle = '#000000'
+    // White matte so any transparency flattens cleanly under JPEG (a black
+    // matte turned transparent AI PNGs into black blocks in figure/showcase
+    // foregrounds and PDF hero images).
+    ctx.fillStyle = '#FFFFFF'
     ctx.fillRect(0, 0, w, h)
     ctx.drawImage(img, 0, 0, w, h)
     return { dataUrl: canvas.toDataURL('image/jpeg', quality), w, h }
@@ -72,10 +74,13 @@ export async function prepareScene(
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
 
-    // cover-fit
-    const s = Math.max(outW / img.naturalWidth, outH / img.naturalHeight)
-    const dw = img.naturalWidth * s
-    const dh = img.naturalHeight * s
+    // cover-fit (guard against zero-dimension images that report onload but
+    // have no intrinsic size — otherwise the scale and draw coords go NaN)
+    const nw = img.naturalWidth || outW
+    const nh = img.naturalHeight || outH
+    const s = Math.max(outW / nw, outH / nh)
+    const dw = nw * s
+    const dh = nh * s
     if (mode === 'wash') ctx.filter = 'blur(3px) saturate(0.9)'
     ctx.drawImage(img, (outW - dw) / 2, (outH - dh) / 2, dw, dh)
     ctx.filter = 'none'

@@ -152,18 +152,29 @@ export async function generatePDF(
 
   function scriptureBlock(text: string) {
     const lines = doc.splitTextToSize(text, contentW - 10) as string[]
-    const blockH = lines.length * 5.4 + 7
-    checkPage(blockH)
-    doc.setFillColor(withHash(scripturePanel))
-    doc.rect(margin, y - 1, contentW, blockH, 'F')
-    doc.setFillColor(accent)
-    doc.rect(margin, y - 1, 1.8, blockH, 'F')
+    const lineH = 5.4
     doc.setFont('times', 'italic')
     doc.setFontSize(10.5)
-    doc.setTextColor(scriptureText)
-    let yy = y + 4.5
-    for (const line of lines) { doc.text(line, margin + 7, yy); yy += 5.4 }
-    y += blockH + 5
+    // Draw the tinted panel one page-segment at a time so a verse taller than
+    // the printable column splits across pages instead of running off the page
+    // and through the footer.
+    let idx = 0
+    while (idx < lines.length) {
+      checkPage(lineH + 7) // guarantee room for at least one line + padding
+      const avail = bottom - (y - 1) - 7
+      const fit = Math.min(lines.length - idx, Math.max(1, Math.floor(avail / lineH)))
+      const seg = lines.slice(idx, idx + fit)
+      const segH = seg.length * lineH + 7
+      doc.setFillColor(withHash(scripturePanel))
+      doc.rect(margin, y - 1, contentW, segH, 'F')
+      doc.setFillColor(accent)
+      doc.rect(margin, y - 1, 1.8, segH, 'F')
+      doc.setTextColor(scriptureText)
+      let yy = y + 4.5
+      for (const line of seg) { doc.text(line, margin + 7, yy); yy += lineH }
+      y += segH + 5
+      idx += fit
+    }
   }
 
   // ── Preload + compress images ──

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { parseJsonBody, badRequest } from '@/lib/api/http'
 import { createClient } from '@/lib/supabase/server'
 
 export async function GET() {
@@ -21,7 +22,8 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await req.json()
+  const body = await parseJsonBody<{ title?: string }>(req)
+  if (!body) return badRequest()
   const { data, error } = await supabase
     .from('sermons')
     .insert({ user_id: user.id, title: body.title ?? 'Untitled Sermon' })

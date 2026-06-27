@@ -273,3 +273,85 @@ alter table sermon_media
 alter table sermon_media
   add constraint sermon_media_kind_check
   check (kind in ('image','map','timeline','scripture_slide','graphic'));
+
+-- ---------------------------------------------------------------
+-- v4: columns the app writes that were previously applied via CLI
+-- only and never committed to this file (schema-vs-code drift).
+-- These ALTERs are idempotent and safe to re-run.
+-- ---------------------------------------------------------------
+
+-- The structured sermon model (JSON) the generator persists per draft.
+alter table sermon_drafts
+  add column if not exists structured jsonb;
+
+-- Generation settings propagated to the sermon for re-runs / display.
+alter table sermons
+  add column if not exists tone     text;
+alter table sermons
+  add column if not exists language text default 'English';
+
+-- Prevent the read-then-write version bump in /api/polish from creating
+-- duplicate versions under concurrent requests (the route retries on 23505).
+do $$
+begin
+  if not exists (
+    select 1 from pg_constraint where conname = 'sermon_drafts_sermon_version_unique'
+  ) then
+    alter table sermon_drafts
+      add constraint sermon_drafts_sermon_version_unique unique (sermon_id, version);
+  end if;
+end $$;
+
+-- ---------------------------------------------------------------
+-- v5: indexes on every foreign-key / filter / order column.
+-- Without these, RLS EXISTS subqueries and dashboard ordering do
+-- sequential scans on every query.
+-- ---------------------------------------------------------------
+create index if not exists sermons_user_updated_idx   on sermons      (user_id, updated_at desc);
+create index if not exists sermon_inputs_sermon_idx    on sermon_inputs (sermon_id);
+create index if not exists sermon_drafts_sermon_idx     on sermon_drafts (sermon_id, version desc);
+create index if not exists sermon_media_sermon_idx      on sermon_media  (sermon_id, order_index);
+create index if not exists sermon_exports_sermon_idx    on sermon_exports (sermon_id);
+create index if not exists outreach_posts_sermon_idx    on outreach_posts (sermon_id);
+create index if not exists outreach_posts_slug_idx      on outreach_posts (share_slug);
+
+-- Idempotency for audio transcription: a retried upload of the same audio file
+-- updates rather than inserts a duplicate input. NULLs are distinct in a unique
+-- index, so text/dictation inputs (null storage_path) are unaffected.
+create unique index if not exists sermon_inputs_sermon_storage_unique
+  on sermon_inputs (sermon_id, storage_path);
+
+-- ---------------------------------------------------------------
+-- v6: cross-instance rate limiting. The in-memory limiter in
+-- lib/api/guards.ts is per-serverless-instance and cannot bound
+-- spend under horizontal scaling; this table + atomic RPC give a
+-- shared counter. Service-role only (no RLS, never client-exposed).
+-- ---------------------------------------------------------------
+create table if not exists rate_limits (
+  key       text primary key,
+  count     integer not null default 0,
+  reset_at  timestamptz not null
+);
+
+create or replace function check_rate_limit(p_key text, p_limit int, p_window_seconds int)
+returns boolean language plpgsql security definer as $$
+declare
+  v_count int;
+begin
+  insert into rate_limits (key, count, reset_at)
+    values (p_key, 1, now() + make_interval(secs => p_window_seconds))
+  on conflict (key) do update set
+    count    = case when rate_limits.reset_at < now() then 1 else rate_limits.count + 1 end,
+    reset_at = case when rate_limits.reset_at < now()
+                    then now() + make_interval(secs => p_window_seconds)
+                    else rate_limits.reset_at end
+  returning count into v_count;
+  return v_count <= p_limit;
+end;
+$$;
+
+-- Opportunistically purge expired buckets so the table stays small.
+create or replace function purge_expired_rate_limits()
+returns void language sql as $$
+  delete from rate_limits where reset_at < now() - interval '1 hour';
+$$;

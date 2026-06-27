@@ -28,8 +28,11 @@ const stripLeadNum = (s: string) => (s ?? '').replace(/^\s*\d+\s*[.)\-:]\s+/, ''
 // centering inside fixed panels so sparse content doesn't leave empty boxes.
 function estLines(text: string, fontPt: number, boxWin: number): number {
   if (!text?.trim()) return 0
-  const charW = fontPt * 0.0072 // rough inch width per char at this size
-  const perLine = Math.max(8, Math.floor(boxWin / charW))
+  // Conservative inch-per-char for a proportional serif (word-boundary wrapping
+  // wastes the tail of each line, so a too-small constant undercounts lines and
+  // overflows the panel). Rounded up rather than down for the same reason.
+  const charW = fontPt * 0.0095
+  const perLine = Math.max(6, Math.floor(boxWin / charW))
   return Math.max(1, Math.ceil(text.length / perLine))
 }
 
@@ -37,7 +40,7 @@ function bodyText(slide: PptxGenJS.Slide, c: DeckCtx, lines: string[], x: number
   if (!lines?.length) return
   slide.addText(
     lines.map((t) => ({ text: t, options: { breakLine: true, paraSpaceAfter: 8 } })),
-    { x, y, w, h, fontSize: size, color, fontFace: c.sans, align, valign: 'top', lineSpacingMultiple: 1.28 }
+    { x, y, w, h, fontSize: size, color, fontFace: c.sans, align, valign: 'top', lineSpacingMultiple: 1.28, fit: 'shrink' }
   )
 }
 
@@ -204,7 +207,7 @@ function bentoSlide(c: DeckCtx, spec: SlideSpec, v: SlideVisual): PptxGenJS.Slid
     const gH = 0.8 + nLines * 0.42
     const sy = top + Math.max(0.4, (gridH - gH) / 2)
     s.addText('01', { x: colX(1) + 0.35, y: sy, w: 1.5, h: 0.6, fontSize: 26, color: numCol, fontFace: c.serif, bold: true })
-    s.addText(items[0], { x: colX(1) + 0.35, y: sy + 0.75, w: heroW - 0.7, h: gridH - (sy - top) - 0.75, fontSize: sizeFor(items[0], [[80, 24], [160, 20]], 17), color: tileInk, fontFace: c.serif, valign: 'top', lineSpacingMultiple: 1.2 })
+    s.addText(items[0], { x: colX(1) + 0.35, y: sy + 0.75, w: heroW - 0.7, h: gridH - (sy - top) - 0.75, fontSize: sizeFor(items[0], [[80, 24], [160, 20]], 17), color: tileInk, fontFace: c.serif, valign: 'top', lineSpacingMultiple: 1.2, fit: 'shrink' })
   }
   const rx = colX(7), rw = colSpan(6)
   const rh = rest.length ? (gridH - (rest.length - 1) * 0.18) / rest.length : gridH

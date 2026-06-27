@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { parseJsonBody, badRequest } from '@/lib/api/http'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { generateImageBase64, generateText, MODELS } from '@/lib/gemini'
 import { userOwnsSermon, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
@@ -30,14 +31,16 @@ export async function POST(req: Request) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
+  if (!(await checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs))) {
     return NextResponse.json({ error: 'Too many AI requests — please try again later' }, { status: 429 })
   }
 
-  const { sermonId, prompt, kind = 'image', highQuality = false, autoPrompt = false, sermonText, regenerateId } = await req.json()
+  const body = await parseJsonBody<{ sermonId?: string; prompt?: string; kind?: string; highQuality?: boolean; autoPrompt?: boolean; sermonText?: string; regenerateId?: string }>(req)
+  if (!body) return badRequest()
+  const { sermonId, prompt, kind = 'image', highQuality = false, autoPrompt = false, sermonText, regenerateId } = body
 
   if (!sermonId) return NextResponse.json({ error: 'Missing sermonId' }, { status: 400 })
-  if (!VALID_KINDS.includes(kind)) {
+  if (!VALID_KINDS.includes(kind as MediaKind)) {
     return NextResponse.json({ error: `Invalid kind — must be one of: ${VALID_KINDS.join(', ')}` }, { status: 400 })
   }
   if (!(await userOwnsSermon(supabase, sermonId, user.id))) {
@@ -55,7 +58,12 @@ export async function POST(req: Request) {
 Sermon excerpt: ${(sermonText as string).replace(/<[^>]+>/g, ' ').slice(0, 800)}
 
 Return ONLY the image prompt as a single sentence, no explanation, no quotes.`
-    imagePrompt = await generateText(suggestPrompt, MODELS.flash)
+    try {
+      imagePrompt = await generateText(suggestPrompt, MODELS.flash, { maxOutputTokens: 256, thinkingBudget: 512 })
+    } catch (err) {
+      console.error('Auto-prompt generation failed:', err)
+      return NextResponse.json({ error: 'Could not suggest an image prompt — please type one or try again' }, { status: 502 })
+    }
   }
 
   if (!imagePrompt) return NextResponse.json({ error: 'Missing prompt' }, { status: 400 })

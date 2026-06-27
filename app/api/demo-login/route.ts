@@ -10,7 +10,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Demo login is not configured' }, { status: 503 })
   }
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
-  if (!checkRateLimit(`demo-login:${ip}`, 10, 15 * 60 * 1000)) {
+  if (!(await checkRateLimit(`demo-login:${ip}`, 10, 15 * 60 * 1000))) {
     return NextResponse.json({ error: 'Too many attempts — please try again later' }, { status: 429 })
   }
   const supabase = await createClient()

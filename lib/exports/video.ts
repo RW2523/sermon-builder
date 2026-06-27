@@ -5,6 +5,8 @@ export interface VideoConfig {
   images: SermonMedia[]
   title: string
   onProgress?: (pct: number) => void
+  /** Measured recording length (s) — used when the WebM blob reports Infinity. */
+  fallbackDurationSec?: number
 }
 
 async function loadImageElement(url: string): Promise<HTMLImageElement> {
@@ -22,6 +24,7 @@ export async function renderAudioVideo({
   images,
   title,
   onProgress,
+  fallbackDurationSec,
 }: VideoConfig): Promise<Blob> {
   const WIDTH = 1280
   const HEIGHT = 720
@@ -60,11 +63,29 @@ export async function renderAudioVideo({
   }
 
   try {
-    const audioDuration = await new Promise<number>((resolve, reject) => {
-      audioEl.onloadedmetadata = () => resolve(audioEl.duration)
+    // MediaRecorder WebM blobs commonly report duration === Infinity until the
+    // browser is forced to seek to the end. Resolve a real, finite duration
+    // (falling back to the measured length captured during recording).
+    const rawDuration = await new Promise<number>((resolve, reject) => {
       audioEl.onerror = () => reject(new Error('Could not load the recorded audio'))
+      audioEl.onloadedmetadata = () => {
+        if (audioEl.duration === Infinity || isNaN(audioEl.duration)) {
+          audioEl.ontimeupdate = () => {
+            audioEl.ontimeupdate = null
+            const d = audioEl.duration
+            audioEl.currentTime = 0
+            resolve(Number.isFinite(d) ? d : (fallbackDurationSec ?? 0))
+          }
+          audioEl.currentTime = 1e101 // force the browser to compute the duration
+        } else {
+          resolve(audioEl.duration)
+        }
+      }
       audioEl.load()
     })
+    const audioDuration = Number.isFinite(rawDuration) && rawDuration > 0
+      ? rawDuration
+      : (fallbackDurationSec && fallbackDurationSec > 0 ? fallbackDurationSec : 60)
 
     // Set up MediaRecorder on canvas stream
     const canvasStream = canvas.captureStream(30)

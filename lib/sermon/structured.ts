@@ -1,4 +1,5 @@
 import type { StructuredSermon, SermonPoint } from '@/types'
+import { escapeHtml as esc } from '@/lib/sanitize'
 
 export function emptyStructured(title = 'Untitled Sermon'): StructuredSermon {
   return {
@@ -58,12 +59,6 @@ export function normalizeStructured(raw: unknown, fallbackTitle = 'Untitled Serm
   }
 }
 
-function esc(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-}
 
 function paras(text: string): string {
   return text

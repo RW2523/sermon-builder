@@ -211,8 +211,10 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
             </p>
             <div className="grid grid-cols-2 gap-2">
               <div className="space-y-1">
-                <label className="text-white/40 text-[11px] uppercase tracking-wider">Tone</label>
+                <label htmlFor="sermon-tone" className="text-white/40 text-[11px] uppercase tracking-wider">Tone</label>
                 <select
+                  id="sermon-tone"
+                  aria-label="Tone"
                   value={tone}
                   onChange={(e) => setTone(e.target.value)}
                   className="w-full rounded-md border border-white/15 bg-white/10 text-white text-sm px-2 py-1.5 focus:outline-none focus:border-amber-400/60"
@@ -221,8 +223,10 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-white/40 text-[11px] uppercase tracking-wider">Language</label>
+                <label htmlFor="sermon-language" className="text-white/40 text-[11px] uppercase tracking-wider">Language</label>
                 <select
+                  id="sermon-language"
+                  aria-label="Language"
                   value={language}
                   onChange={(e) => setLanguage(e.target.value)}
                   className="w-full rounded-md border border-white/15 bg-white/10 text-white text-sm px-2 py-1.5 focus:outline-none focus:border-amber-400/60"
@@ -369,7 +373,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
           {suggestions && showSuggestions && (
             <div className="space-y-5 pt-2">
               {/* Strengthening tips */}
-              {suggestions.strengthening_tips?.length && (
+              {!!suggestions.strengthening_tips?.length && (
                 <div className="space-y-2">
                   <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Strengthening Tips</p>
                   <ul className="space-y-1.5">
@@ -383,7 +387,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
               )}
 
               {/* Illustrations */}
-              {suggestions.illustrations?.length && (
+              {!!suggestions.illustrations?.length && (
                 <div className="space-y-2">
                   <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Illustration Ideas</p>
                   <div className="space-y-2">
@@ -401,7 +405,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
               )}
 
               {/* Applications */}
-              {suggestions.applications?.length && (
+              {!!suggestions.applications?.length && (
                 <div className="space-y-2">
                   <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Application Points</p>
                   <div className="space-y-2">
@@ -419,7 +423,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
               )}
 
               {/* Scripture connections */}
-              {suggestions.scripture_connections?.length && (
+              {!!suggestions.scripture_connections?.length && (
                 <div className="space-y-2">
                   <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Scripture Cross-References</p>
                   <div className="space-y-1.5">
@@ -437,7 +441,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
               )}
 
               {/* Opening hooks */}
-              {suggestions.opening_hooks?.length && (
+              {!!suggestions.opening_hooks?.length && (
                 <div className="space-y-2">
                   <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Opening Hook Ideas</p>
                   {suggestions.opening_hooks.map((hook, i) => (
@@ -452,7 +456,7 @@ export default function Stage2Polish({ sermon, inputs, draft, onDraftChange, onS
               )}
 
               {/* Closing calls */}
-              {suggestions.closing_calls?.length && (
+              {!!suggestions.closing_calls?.length && (
                 <div className="space-y-2">
                   <p className="text-white/50 text-xs font-semibold uppercase tracking-wider">Closing Call to Action Ideas</p>
                   {suggestions.closing_calls.map((cta, i) => (

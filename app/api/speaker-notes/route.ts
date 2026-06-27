@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { parseJsonBody, badRequest } from '@/lib/api/http'
 import { createClient } from '@/lib/supabase/server'
 import { generateText, MODELS } from '@/lib/gemini'
 import { getOwnedDraft, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
@@ -9,13 +10,15 @@ export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
+  if (!(await checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs))) {
     return NextResponse.json({ error: 'Too many AI requests — please try again later' }, { status: 429 })
   }
 
-  const { draftId, sermonHtml, title, scriptureRef, theme } = await req.json()
+  const body = await parseJsonBody<{ draftId?: string; sermonHtml?: string; title?: string; scriptureRef?: string; theme?: string }>(req)
+  if (!body) return badRequest()
+  const { draftId, sermonHtml, title, scriptureRef, theme } = body
   if (!sermonHtml || !draftId) return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
-  if (!(await getOwnedDraft(supabase, draftId))) {
+  if (!(await getOwnedDraft(supabase, draftId, user.id))) {
     return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
   }
 

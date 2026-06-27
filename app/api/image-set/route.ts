@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { parseJsonBody, badRequest } from '@/lib/api/http'
 import { createAdminClient, createClient } from '@/lib/supabase/server'
 import { generateImageBase64 } from '@/lib/gemini'
 import { userOwnsSermon, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
@@ -32,11 +33,13 @@ export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
+  if (!(await checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs))) {
     return NextResponse.json({ error: 'Too many requests — please try again later' }, { status: 429 })
   }
 
-  const { sermonId, count = 6, highQuality = false } = await req.json()
+  const body = await parseJsonBody<{ sermonId?: string; count?: number; highQuality?: boolean }>(req)
+  if (!body) return badRequest()
+  const { sermonId, count = 6, highQuality = false } = body
   if (!sermonId) return NextResponse.json({ error: 'Missing sermonId' }, { status: 400 })
   if (!(await userOwnsSermon(supabase, sermonId, user.id))) {
     return NextResponse.json({ error: 'Sermon not found' }, { status: 404 })

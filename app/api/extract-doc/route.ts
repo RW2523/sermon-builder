@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   if (!(await userOwnsSermon(supabase, sermonId, user.id))) {
     return NextResponse.json({ error: 'Sermon not found' }, { status: 404 })
   }
-  if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
+  if (!(await checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs))) {
     return NextResponse.json({ error: 'Too many AI requests — please try again later' }, { status: 429 })
   }
 

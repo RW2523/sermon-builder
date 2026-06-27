@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { ArrowLeft, BookOpen, CheckCircle2 } from 'lucide-react'
 import type { Sermon, SermonInput, SermonDraft, SermonMedia, OutreachPost } from '@/types'
@@ -35,7 +36,17 @@ export default function SermonWorkspace({ sermon: initialSermon, inputs: initial
   const [activeStage, setActiveStage] = useState(initialSermon.current_stage)
 
   async function goToStage(stage: number) {
-    // Navigation is optimistic; stage persistence failing shouldn't block the UI
+    // Gate forward jumps to stages whose prerequisites aren't met yet.
+    if (stage > 1 && inputs.length === 0) {
+      toast.info('Add some content in Stage 1 first')
+      return
+    }
+    if (stage >= 3 && !draft) {
+      toast.info('Generate your sermon in Stage 2 first')
+      return
+    }
+    // Navigation is optimistic; stage persistence failing shouldn't block the UI,
+    // but the user is told so the stepper and saved progress don't silently diverge.
     setActiveStage(stage as 1 | 2 | 3 | 4)
     try {
       const res = await fetch(`/api/sermons/${sermon.id}`, {
@@ -45,9 +56,11 @@ export default function SermonWorkspace({ sermon: initialSermon, inputs: initial
       })
       if (res.ok) {
         setSermon((prev) => ({ ...prev, current_stage: stage as 1 | 2 | 3 | 4 }))
+      } else {
+        toast.error('Could not save your progress — it may not persist if you leave')
       }
     } catch {
-      // offline / transient failure — stage will re-sync on next successful save
+      toast.error('Could not save your progress — check your connection')
     }
   }
 

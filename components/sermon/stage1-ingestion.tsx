@@ -75,6 +75,38 @@ export default function Stage1Ingestion({ sermon, inputs, onInputsChange, onNext
     JSON.stringify({ title: sermon.title, scripture_ref: sermon.scripture_ref ?? '', theme: sermon.theme ?? '' })
   )
 
+  // Buffer unsaved typing/dictation/scripture to localStorage so switching
+  // stages or reloading doesn't silently discard work the user hasn't saved yet.
+  const DRAFT_KEY = `sb-stage1-${sermon.id}`
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY)
+      if (!saved) return
+      const d = JSON.parse(saved)
+      // One-time restore of client-only buffers after mount (the recommended
+      // place for this) — the lint rule's general caution doesn't apply.
+      /* eslint-disable react-hooks/set-state-in-effect */
+      if (d.typedText) setTypedText((v) => v || d.typedText)
+      if (d.dictationText) setDictationText((v) => v || d.dictationText)
+      if (d.bibleVerse) setBibleVerse((v) => v || d.bibleVerse)
+      if (d.bibleNotes) setBibleNotes((v) => v || d.bibleNotes)
+      /* eslint-enable react-hooks/set-state-in-effect */
+    } catch { /* ignore corrupt/blocked storage */ }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  useEffect(() => {
+    const id = setTimeout(() => {
+      try {
+        if (typedText || dictationText || bibleVerse || bibleNotes) {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify({ typedText, dictationText, bibleVerse, bibleNotes }))
+        } else {
+          localStorage.removeItem(DRAFT_KEY)
+        }
+      } catch { /* ignore */ }
+    }, 400)
+    return () => clearTimeout(id)
+  }, [typedText, dictationText, bibleVerse, bibleNotes, DRAFT_KEY])
+
   useEffect(() => {
     const SpeechRecognitionCtor =
       (typeof window !== 'undefined' && (window.SpeechRecognition || window.webkitSpeechRecognition)) || null

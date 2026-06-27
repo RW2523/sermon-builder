@@ -6,7 +6,7 @@ import { getVisualTheme } from '@/lib/visuals/theme'
 import { renderProgrammaticVisual, isProgrammatic } from '@/lib/visuals'
 import { prepareImage, prepareScene } from '@/lib/exports/image'
 import { mix } from '@/lib/visuals/theme'
-import { buildFallbackPlan } from '@/lib/slides/fallbackPlan'
+import { buildContentPlan } from '@/lib/slides/contentPlan'
 import { createDeck } from '@/lib/exports/deck'
 import { renderSlide, type SlideVisual } from '@/lib/exports/layouts'
 
@@ -35,7 +35,7 @@ export async function generatePPT(
 
   const plan: SlidePlan = opts.slidePlan?.slides?.length
     ? opts.slidePlan
-    : buildFallbackPlan(structured, themeId)
+    : buildContentPlan(structured, { themeId })
 
   const pptx = new PptxGenJS()
   pptx.layout = 'LAYOUT_WIDE'
@@ -58,6 +58,21 @@ export async function generatePPT(
   const scrimDark = t.mode === 'dark' ? `#${t.bgAlt}` : mix(t.text, '#000000', 0.25)
   const crisp = async (url: string) => (await prepareImage(url))?.dataUrl ?? null
 
+  // Prepare a scene, but if the chosen image fails to load (404 / expired URL /
+  // CORS) fall back to other images in the pool so hero/cover/section slides
+  // still get a usable background instead of a flat colour rectangle.
+  const scene = async (url: string, mode: Parameters<typeof prepareScene>[1]): Promise<string | null> => {
+    let out = await prepareScene(url, mode, scrimDark)
+    let tries = 0
+    while (!out && rawPool.length && tries < rawPool.length) {
+      const alt = nextRaw()
+      tries++
+      if (!alt || alt === url) continue
+      out = await prepareScene(alt, mode, scrimDark)
+    }
+    return out
+  }
+
   // ── Resolve each slide into { main, bg }: smooth baked gradients instead of
   // hard scrim rects, and a background image on (almost) every slide. ──
   const visuals: SlideVisual[] = await Promise.all(
@@ -70,24 +85,24 @@ export async function generatePPT(
         const url = spec.visual.imageUrl || nextRaw()
         if (!url) return { main: null, bg: null }
         if (layout === 'cover' || layout === 'closing' || layout === 'fullBleedCaption') {
-          return { main: await prepareScene(url, 'heroBottom', scrimDark), bg: null }
+          return { main: await scene(url, 'heroBottom'), bg: null }
         }
         if (layout === 'sectionDivider') {
-          return { main: await prepareScene(url, 'heroLeft', scrimDark), bg: null }
+          return { main: await scene(url, 'heroLeft'), bg: null }
         }
         if (layout === 'bigStat') {
-          return { main: await prepareScene(url, 'wash', scrimDark), bg: null }
+          return { main: await scene(url, 'wash'), bg: null }
         }
         if (layout === 'figure' || layout === 'showcase' || layout === 'split') {
-          const [fg, bg] = await Promise.all([crisp(url), prepareScene(url, 'wash', scrimDark)])
+          const [fg, bg] = await Promise.all([crisp(url), scene(url, 'wash')])
           return { main: fg, bg }
         }
-        return { main: null, bg: await prepareScene(url, 'wash', scrimDark) }
+        return { main: null, bg: await scene(url, 'wash') }
       }
       // Text-only slides get a subtle washed background from the image pool so
       // every slide carries imagery (panels/text sit on top, fully readable).
       const bgUrl = nextRaw()
-      return { main: null, bg: bgUrl ? await prepareScene(bgUrl, 'wash', scrimDark) : null }
+      return { main: null, bg: bgUrl ? await scene(bgUrl, 'wash') : null }
     })
   )
 

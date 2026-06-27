@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { parseJsonBody, badRequest } from '@/lib/api/http'
 import { createClient } from '@/lib/supabase/server'
 import { generateText, parseModelJson, MODELS } from '@/lib/gemini'
 import { userOwnsSermon, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
@@ -23,14 +24,16 @@ export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
+  if (!(await checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs))) {
     return NextResponse.json({ error: 'Too many requests — please try again later' }, { status: 429 })
   }
 
+  const body = await parseJsonBody<{ sermonId?: string; inputs?: Array<{ kind: string; raw_text?: string; transcription?: string }>; title?: string; scriptureRef?: string; theme?: string; tone?: string; language?: string; style?: string }>(req)
+  if (!body) return badRequest()
   const {
     sermonId, inputs, title, scriptureRef, theme,
     tone = 'Inspirational', language = 'English', style = 'message',
-  } = await req.json()
+  } = body
   if (!sermonId || !inputs?.length) {
     return NextResponse.json({ error: 'Missing sermonId or inputs' }, { status: 400 })
   }
@@ -38,11 +41,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Sermon not found' }, { status: 404 })
   }
 
+  // Cap per-source and total input so a long pasted/transcribed talk can't send
+  // tens of thousands of tokens into the one generation every sermon runs.
+  const PER_SOURCE = 8000
+  const TOTAL_CAP = 24000
   const rawContent = inputs
-    .map((inp: { kind: string; raw_text?: string; transcription?: string }, i: number) =>
-      `[Source ${i + 1} - ${inp.kind}]:\n${inp.transcription ?? inp.raw_text ?? ''}`
+    .map((inp, i) =>
+      `[Source ${i + 1} - ${inp.kind}]:\n${(inp.transcription ?? inp.raw_text ?? '').slice(0, PER_SOURCE)}`
     )
     .join('\n\n---\n\n')
+    .slice(0, TOTAL_CAP)
 
   const styleHint = STYLE_HINTS[style] ?? STYLE_HINTS.message
 
@@ -76,7 +84,7 @@ Requirements: 3-5 main points, each body 4-5 sentences. At least 5 applications.
 
   let raw: string
   try {
-    raw = await generateText(prompt, MODELS.flash)
+    raw = await generateText(prompt, MODELS.flash, { maxOutputTokens: 12000, timeoutMs: 50_000 })
   } catch (err) {
     console.error('Polish generation failed:', err)
     return NextResponse.json({ error: 'Generation failed — please try again' }, { status: 502 })
@@ -95,27 +103,38 @@ Requirements: 3-5 main points, each body 4-5 sentences. At least 5 applications.
 
   const polished_html = structuredToHtml(structured)
 
-  const { data: existing } = await supabase
-    .from('sermon_drafts')
-    .select('id, version')
-    .eq('sermon_id', sermonId)
-    .order('version', { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  // Insert the new draft version. version is max+1 (read-then-write); the
+  // unique (sermon_id, version) constraint makes a concurrent collision a 23505,
+  // which we retry once with a freshly-read version.
+  let draft = null
+  let lastError = null
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data: existing } = await supabase
+      .from('sermon_drafts')
+      .select('version')
+      .eq('sermon_id', sermonId)
+      .order('version', { ascending: false })
+      .limit(1)
+      .maybeSingle()
 
-  const { data: draft, error } = await supabase
-    .from('sermon_drafts')
-    .insert({
-      sermon_id: sermonId,
-      structured,
-      polished_html,
-      template_type: style,
-      version: (existing?.version ?? 0) + 1,
-    })
-    .select()
-    .single()
+    const { data, error } = await supabase
+      .from('sermon_drafts')
+      .insert({
+        sermon_id: sermonId,
+        structured,
+        polished_html,
+        template_type: style,
+        version: (existing?.version ?? 0) + 1,
+      })
+      .select()
+      .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (!error) { draft = data; break }
+    lastError = error
+    if (error.code !== '23505') break // not a version collision — don't retry
+  }
+
+  if (!draft) return NextResponse.json({ error: lastError?.message ?? 'Could not save draft' }, { status: 500 })
 
   // Persist generation settings and propagate derived metadata to the sermon
   await supabase.from('sermons').update({

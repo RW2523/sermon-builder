@@ -34,3 +34,26 @@ export async function uploadSermonImage(
   }
   throw new Error(lastErr ?? 'Image upload failed')
 }
+
+const SERMON_BUCKETS = ['sermon-media', 'sermon-audio', 'sermon-exports'] as const
+
+// Best-effort removal of every stored object under {userId}/{sermonId}/ across
+// all sermon buckets. Called on sermon delete so DB cascade doesn't orphan the
+// underlying files (cost + the public images would otherwise stay reachable).
+export async function removeSermonStorage(
+  admin: SupabaseClient,
+  userId: string,
+  sermonId: string,
+): Promise<void> {
+  const prefix = `${userId}/${sermonId}`
+  for (const bucket of SERMON_BUCKETS) {
+    try {
+      const { data: files } = await admin.storage.from(bucket).list(prefix, { limit: 1000 })
+      if (files?.length) {
+        await admin.storage.from(bucket).remove(files.map((f) => `${prefix}/${f.name}`))
+      }
+    } catch (err) {
+      console.warn(`Storage cleanup failed for ${bucket}/${prefix}:`, err)
+    }
+  }
+}

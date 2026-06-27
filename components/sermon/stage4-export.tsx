@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -107,8 +107,19 @@ export default function Stage4Export({
   const [recordedAudio, setRecordedAudio] = useState<Blob | null>(null)
   const [audioDuration, setAudioDuration] = useState(0)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const streamRef = useRef<MediaStream | null>(null)
   const chunksRef = useRef<BlobPart[]>([])
   const startTimeRef = useRef<number>(0)
+
+  // Release the mic + recorder if the component unmounts mid-recording (e.g. the
+  // user clicks Back or switches stages) so the mic indicator doesn't stay live.
+  useEffect(() => () => {
+    try { mediaRecorderRef.current?.stop() } catch { /* already stopped */ }
+    streamRef.current?.getTracks().forEach((t) => t.stop())
+  }, [])
+
+  // Revoke each rendered-video object URL when it's replaced or on unmount.
+  useEffect(() => () => { if (videoUrl) URL.revokeObjectURL(videoUrl) }, [videoUrl])
 
   async function handleExportPDF() {
     const structured = resolveStructured()
@@ -215,6 +226,7 @@ export default function Stage4Export({
   async function startRecording() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
       const recorder = new MediaRecorder(stream)
       chunksRef.current = []
       recorder.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data) }
@@ -223,6 +235,7 @@ export default function Stage4Export({
         setRecordedAudio(blob)
         setAudioDuration((Date.now() - startTimeRef.current) / 1000)
         stream.getTracks().forEach((t) => t.stop())
+        streamRef.current = null
       }
       mediaRecorderRef.current = recorder
       startTimeRef.current = Date.now()
@@ -257,6 +270,7 @@ export default function Stage4Export({
         images: media,
         title: sermon.title,
         onProgress: setVideoProgress,
+        fallbackDurationSec: audioDuration,
       })
       const url = URL.createObjectURL(blob)
       setVideoUrl(url)
@@ -391,6 +405,8 @@ export default function Stage4Export({
                 <button
                   key={th.id}
                   onClick={() => persistTemplate(th.id)}
+                  aria-label={`${th.label} theme`}
+                  aria-pressed={templateId === th.id}
                   className={cn(
                     'rounded-lg border p-2 text-left transition-all',
                     templateId === th.id ? 'border-amber-400 ring-1 ring-amber-400/40' : 'border-white/10 hover:border-white/30'
@@ -588,7 +604,7 @@ export default function Stage4Export({
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Congregation Summary</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(outreach.summary!, 'summary')}>
+                    <Button variant="ghost" size="icon" aria-label="Copy to clipboard" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(outreach.summary!, 'summary')}>
                       {copied === 'summary' ? <CheckCheck className="h-3.5 w-3.5 text-amber-300" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
@@ -600,7 +616,7 @@ export default function Stage4Export({
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Social Caption</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(outreach.social_caption!, 'caption')}>
+                    <Button variant="ghost" size="icon" aria-label="Copy to clipboard" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(outreach.social_caption!, 'caption')}>
                       {copied === 'caption' ? <CheckCheck className="h-3.5 w-3.5 text-amber-300" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
@@ -608,7 +624,7 @@ export default function Stage4Export({
                 </div>
               )}
 
-              {outreach?.hashtags?.length && (
+              {!!outreach?.hashtags?.length && (
                 <div className="space-y-1">
                   <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Hashtags</span>
                   <div className="flex flex-wrap gap-1.5 pt-1">
@@ -630,7 +646,7 @@ export default function Stage4Export({
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Instagram</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(socialData!.instagram_caption as string, 'ig')}>
+                    <Button variant="ghost" size="icon" aria-label="Copy to clipboard" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(socialData!.instagram_caption as string, 'ig')}>
                       {copied === 'ig' ? <CheckCheck className="h-3.5 w-3.5 text-amber-300" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
@@ -642,7 +658,7 @@ export default function Stage4Export({
                 <div className="space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">Facebook</span>
-                    <Button variant="ghost" size="icon" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(socialData!.facebook_post as string, 'fb')}>
+                    <Button variant="ghost" size="icon" aria-label="Copy to clipboard" className="h-6 w-6 text-white/40 hover:text-white" onClick={() => copyText(socialData!.facebook_post as string, 'fb')}>
                       {copied === 'fb' ? <CheckCheck className="h-3.5 w-3.5 text-amber-300" /> : <Copy className="h-3.5 w-3.5" />}
                     </Button>
                   </div>
@@ -679,11 +695,11 @@ export default function Stage4Export({
           {shareUrl && (
             <div className="flex items-center gap-2 bg-white/5 rounded-lg p-3">
               <p className="text-amber-300 text-sm flex-1 truncate">{shareUrl}</p>
-              <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white shrink-0" onClick={() => copyText(shareUrl, 'share')}>
+              <Button variant="ghost" size="icon" aria-label="Copy link" className="h-7 w-7 text-white/50 hover:text-white shrink-0" onClick={() => copyText(shareUrl, 'share')}>
                 {copied === 'share' ? <CheckCheck className="h-4 w-4 text-amber-300" /> : <Copy className="h-4 w-4" />}
               </Button>
               <a href={shareUrl} target="_blank" rel="noopener noreferrer">
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-white/50 hover:text-white">
+                <Button variant="ghost" size="icon" aria-label="Open shared sermon in new tab" className="h-7 w-7 text-white/50 hover:text-white">
                   <ExternalLink className="h-4 w-4" />
                 </Button>
               </a>

@@ -4,18 +4,13 @@
 // via an offscreen canvas — crisp vector text, no native deps, and the exact
 // same PNG flows into both the PPT and PDF exporters.
 
+import { escapeHtml as esc } from '@/lib/sanitize'
+
 export const VISUAL_W = 1600
 export const VISUAL_H = 900
 
-/** Escape text for safe inclusion in SVG markup. */
-export function esc(s: string): string {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;')
-}
+/** Escape text for safe inclusion in SVG markup (shared app-wide escaper). */
+export { esc }
 
 /** Wrap a string into <= maxChars lines on word boundaries (greedy). */
 export function wrap(text: string, maxChars: number): string[] {

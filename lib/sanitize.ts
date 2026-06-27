@@ -15,8 +15,11 @@ export function sanitizeHtml(html: string): string {
   })
 }
 
-export function escapeHtml(text: string): string {
-  return text
+// The single HTML/SVG escaper for the app — full quote-escaping so it is safe
+// in both text-content and attribute positions. Coerces non-strings (SVG
+// builders pass numbers). structured.ts and visuals/svg.ts both import this.
+export function escapeHtml(text: unknown): string {
+  return String(text ?? '')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

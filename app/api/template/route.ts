@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { parseJsonBody, badRequest } from '@/lib/api/http'
 import { createClient } from '@/lib/supabase/server'
 import { generateText, parseModelJson, MODELS } from '@/lib/gemini'
 import { userOwnsSermon, getOwnedDraft, checkRateLimit, AI_RATE_LIMIT } from '@/lib/api/guards'
@@ -12,18 +13,20 @@ export async function POST(req: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  if (!checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs)) {
+  if (!(await checkRateLimit(`ai:${user.id}`, AI_RATE_LIMIT.limit, AI_RATE_LIMIT.windowMs))) {
     return NextResponse.json({ error: 'Too many requests — please try again later' }, { status: 429 })
   }
 
-  const { sermonId, draftId, structured, templateType, tone = 'Inspirational', language = 'English' } = await req.json()
+  const body = await parseJsonBody<{ sermonId?: string; draftId?: string; structured?: StructuredSermon; templateType?: TemplateType; tone?: string; language?: string }>(req)
+  if (!body) return badRequest()
+  const { sermonId, draftId, structured, templateType, tone = 'Inspirational', language = 'English' } = body
   if (!sermonId || !draftId || !structured || !templateType) {
     return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
   }
   if (!(await userOwnsSermon(supabase, sermonId, user.id))) {
     return NextResponse.json({ error: 'Sermon not found' }, { status: 404 })
   }
-  const owned = await getOwnedDraft(supabase, draftId)
+  const owned = await getOwnedDraft(supabase, draftId, user.id)
   if (!owned || owned.sermon_id !== sermonId) {
     return NextResponse.json({ error: 'Draft not found' }, { status: 404 })
   }
